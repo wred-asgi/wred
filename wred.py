@@ -11,7 +11,7 @@ Copyright (c) 2026, Harrison Erd.
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
 __version__ = '0.01'
-__license__ = 'BSD3'
+__license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable
 from asyncio import to_thread

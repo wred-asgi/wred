@@ -9,6 +9,7 @@ description = "An ultra-minimal ASGI framework for JSON APIs."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "Harrison Erd", email = "harrisonerd@gmail.com" }]
 dependencies = ["orjson", "granian"]
 
