@@ -50,9 +50,9 @@
     </header>
     <section class="terminal-track" aria-label="Scroll through installation and example files">
       <div class="terminal">
-      <pre id="source" aria-label="Installation and example files"><code>$ git clone https://gitman.io/git/patx/wred
-$ cd wred
-$ uv sync
+      <pre id="source" aria-label="Installation and example files"><code>$ uv init my-app
+$ cd my-app
+$ uv add wred
 
 $ cat &gt; app.py &lt;&lt;'EOF'
 from wred import App

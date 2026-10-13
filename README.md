@@ -26,15 +26,17 @@ them everyone else's dependency. Wred doesn't need to know they exist.
 
 ## Use it
 
-Python 3.11+. Clone the repo, then install it:
+Python 3.11+. Install from PyPI:
 
 Procure your goods, yeah, use `uv` not `pip`, its 2026:
 
 ```bash
-$ git clone https://gitman.io/git/patx/wred
-$ cd wred
-$ uv sync
+$ uv init my-app
+$ cd my-app
+$ uv add wred
 ```
+
+Already have a uv project? Just run `uv add wred`. Granian and orjson come with it.
 
 Put this in your pipe (`app.py`):
 
@@ -192,8 +194,12 @@ aren't caught by Wred; fix your shit or handle them in your application.
 The [`example_app`](https://gitman.io/patx/wred/src/example_app) notebook demonstrates signup, login,
 refresh cookies, logout, protected endpoints, note CRUD, and rate limiting.
 Those features belong to the example, not the framework.
+Clone the repository to try it:
 
 ```bash
+git clone https://gitman.io/git/patx/wred
+cd wred
+uv sync
 uv run granian --interface asginl --workers 1 example_app.app:app
 ```
 
