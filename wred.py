@@ -10,7 +10,7 @@ Copyright (c) 2026, Harrison Erd.
 
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
-__version__ = '0.01'
+__version__ = '0.02'
 __license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable
@@ -66,7 +66,7 @@ class Request:
 class App:
     """A minimal ASGI application framework."""
     def __init__(self):
-        self.routes: dict[str, dict[str, Callable]] = {}  # Path -> Method -> Handler
+        self.routes: dict[str, dict[str, Callable]] = {}
         self.pattern_routes: dict[str, dict[str, Callable]] = {}
 
     async def __call__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
