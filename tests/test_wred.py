@@ -1,0 +1,285 @@
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import orjson
+
+from wred import App
+
+
+async def call_app(app, scope, receive):
+    """Drive an ASGI request and capture its actual outgoing messages."""
+    messages = []
+
+    async def send(message):
+        messages.append(message)
+
+    await app(scope, receive, send)
+    return messages
+
+
+class WredTests(unittest.IsolatedAsyncioTestCase):
+    async def test_file_delivery_and_root_confinement(self):
+        # Exercise the public helper through the actual ASGI response boundary.
+        # This guards MIME/status delivery and accidental exposure outside root.
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'static'
+            root.mkdir()
+            (root / 'index.html').write_bytes(b'<p>Hello</p>')
+            (root / 'asset.unknownextension').write_bytes(b'\x00\xff')
+            (base / 'secret.txt').write_text('private')
+            (root / 'escape.txt').symlink_to(base / 'secret.txt')
+
+            app = App()
+
+            @app.route('/file', methods=['POST'])
+            async def file(request):
+                data = await request.json()
+                return await app.static(data['filename'], root=root)
+
+            cases = [
+                ('index.html', 200, b'text/html', b'<p>Hello</p>'),
+                ('asset.unknownextension', 200, b'application/octet-stream', b'\x00\xff'),
+                ('missing.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
+                ('.', 404, b'text/plain; charset=utf-8', b'Not Found'),
+                ('../secret.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
+                (str(base / 'secret.txt'), 404, b'text/plain; charset=utf-8', b'Not Found'),
+                ('escape.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
+                ('invalid\x00.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
+            ]
+            for filename, status, content_type, body in cases:
+                with self.subTest(filename=filename):
+                    async def receive():
+                        return {'type': 'http.request', 'body': orjson.dumps({'filename': filename})}
+
+                    messages = await call_app(app, {'type': 'http', 'path': '/file', 'method': 'POST'}, receive)
+                    self.assertEqual(messages, [
+                        {'type': 'http.response.start', 'status': status,
+                         'headers': [(b'content-type', content_type)]},
+                        {'type': 'http.response.body', 'body': body},
+                    ])
+
+    async def test_dictionary_and_list_responses_are_json(self):
+        app = App()
+
+        @app.route('/')
+        async def home(request):
+            return value
+
+        async def receive():
+            raise AssertionError('GET handler should not read a body')
+
+        cases = [
+            ({'hello': 'world'}, b'{"hello":"world"}'),
+            ([{'id': 1}, {'id': 2}], b'[{"id":1},{"id":2}]'),
+            ([], b'[]'),
+        ]
+        for value, body in cases:
+            with self.subTest(value=value):
+                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
+                self.assertEqual(messages, [
+                    {'type': 'http.response.start', 'status': 200,
+                     'headers': [(b'content-type', b'application/json')]},
+                    {'type': 'http.response.body', 'body': body},
+                ])
+
+    async def test_custom_status_and_json_errors(self):
+        # Covers the error paths that previously sent ASGI messages separately,
+        # plus a response tuple returned through dynamic routing.
+        app = App()
+
+        @app.route('/{name}/created')
+        async def created(request, name):
+            return {'name': name}, 'application/json', 201
+
+        @app.route('/invalid')
+        async def invalid(request):
+            return 'not a supported response'
+
+        @app.route('/input', methods=['POST'])
+        async def input_data(request):
+            return await request.json()
+
+        cases = [
+            ('GET', '/alice/created', b'', 201, b'{"name":"alice"}'),
+            ('GET', '/missing', b'', 404, b'{"error":"Not Found"}'),
+            ('GET', '/invalid', b'', 500,
+             b'{"error":"Response must be a dictionary, list, bytes, or response tuple"}'),
+            ('POST', '/input', b'{', 400, b'{"error":"Invalid JSON body"}'),
+            ('POST', '/input', b'', 200, b'{}'),
+            ('GET', '/alice/missing', b'', 404, b'{"error":"Not Found"}'),
+            ('DELETE', '/alice/created', b'', 404, b'{"error":"Not Found"}'),
+        ]
+        for method, path, request_body, status, body in cases:
+            with self.subTest(path=path):
+                async def receive():
+                    return {'type': 'http.request', 'body': request_body}
+
+                messages = await call_app(app, {'type': 'http', 'path': path, 'method': method}, receive)
+                self.assertEqual(messages, [
+                    {'type': 'http.response.start', 'status': status,
+                     'headers': [(b'content-type', b'application/json')]},
+                    {'type': 'http.response.body', 'body': body},
+                ])
+
+    async def test_route_priority_and_method_registration(self):
+        app = App()
+
+        @app.route('/people/{name}')
+        async def person(request, name):
+            return {'name': name}
+
+        @app.route('/people/{name}', methods=['POST'])
+        async def update_person(request, name):
+            return {'updated': name}
+
+        @app.route('/people/alice')
+        async def alice(request):
+            return {'fixed': True}
+
+        cases = [
+            ('GET', '/people/alice', b'{"fixed":true}'),
+            ('GET', '/people/bob', b'{"name":"bob"}'),
+            ('POST', '/people/alice', b'{"updated":"alice"}'),
+        ]
+        for method, path, body in cases:
+            with self.subTest(method=method, path=path):
+                async def receive():
+                    raise AssertionError('These handlers do not read the body')
+
+                messages = await call_app(app, {'type': 'http', 'path': path, 'method': method}, receive)
+                self.assertEqual(messages[0]['status'], 200)
+                self.assertEqual(messages[1]['body'], body)
+
+    async def test_streamed_body_is_cached_and_headers_are_available(self):
+        app = App()
+        reads = 0
+        chunks = iter([
+            {'type': 'http.request', 'body': b'{"name":', 'more_body': True},
+            {'type': 'http.request', 'more_body': True},
+            {'type': 'http.request', 'body': b'"Alice"}', 'more_body': False},
+        ])
+
+        @app.route('/stream', methods=['POST'])
+        async def stream(request):
+            first = await request.body()
+            parsed = await request.json()
+            cached = await request.body()
+            return {'raw': first.decode(), 'cached': cached.decode(),
+                    'parsed': parsed, 'header': request.headers['x-example']}
+
+        async def receive():
+            nonlocal reads
+            reads += 1
+            return next(chunks)
+
+        messages = await call_app(app, {
+            'type': 'http', 'path': '/stream', 'method': 'POST',
+            'headers': [(b'x-example', b'hello')],
+        }, receive)
+        self.assertEqual(reads, 3)
+        self.assertEqual(messages[0]['status'], 200)
+        self.assertEqual(orjson.loads(messages[1]['body']), {
+            'raw': '{"name":"Alice"}', 'cached': '{"name":"Alice"}',
+            'parsed': {'name': 'Alice'}, 'header': 'hello',
+        })
+
+    async def test_disconnect_stops_body_reading(self):
+        app = App()
+        reads = 0
+
+        @app.route('/input', methods=['POST'])
+        async def input_data(request):
+            return await request.json()
+
+        async def receive():
+            nonlocal reads
+            reads += 1
+            if reads > 1:
+                raise AssertionError('Body reading continued after disconnect')
+            return {'type': 'http.disconnect'}
+
+        messages = await call_app(app, {'type': 'http', 'path': '/input', 'method': 'POST'}, receive)
+        self.assertEqual(messages, [
+            {'type': 'http.response.start', 'status': 400,
+             'headers': [(b'content-type', b'application/json')]},
+            {'type': 'http.response.body', 'body': b'{"error":"Client disconnected"}'},
+        ])
+
+    async def test_unsupported_scope_does_not_read_http_fields(self):
+        app = App()
+
+        async def receive():
+            raise AssertionError('An unsupported scope should not be read')
+
+        messages = await call_app(app, {'type': 'unsupported'}, receive)
+        self.assertEqual(messages, [
+            {'type': 'http.response.start', 'status': 400,
+             'headers': [(b'content-type', b'application/json')]},
+            {'type': 'http.response.body', 'body': b'{"error":"Unsupported scope type"}'},
+        ])
+
+    async def test_file_read_failure_returns_404(self):
+        app = App()
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / 'private.txt').write_text('private')
+
+            @app.route('/')
+            async def file(request):
+                return await app.static('private.txt', root=directory)
+
+            async def receive():
+                raise AssertionError('File serving should not read the request body')
+
+            # Simulate the OS refusing a real file read, including when tests run as root.
+            with patch.object(Path, 'read_bytes', side_effect=PermissionError('denied')):
+                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
+            self.assertEqual(messages, [
+                {'type': 'http.response.start', 'status': 404,
+                 'headers': [(b'content-type', b'text/plain; charset=utf-8')]},
+                {'type': 'http.response.body', 'body': b'Not Found'},
+            ])
+
+    async def test_raw_and_custom_response_bodies(self):
+        app = App()
+
+        @app.route('/')
+        async def raw(request):
+            return response
+
+        cases = [
+            (b'\x00\xff', 200, b'application/octet-stream', b'\x00\xff', []),
+            ((b'<p>Hello</p>', 'text/html; charset=utf-8', 202),
+             202, b'text/html; charset=utf-8', b'<p>Hello</p>', []),
+            (([], 'application/json', 201), 201, b'application/json', b'[]', []),
+            ((b'bad', 'text/plain'), 500, b'application/json',
+             b'{"error":"Response must be a dictionary, list, bytes, or response tuple"}', []),
+            (({'error': 'Unauthorized'}, 'application/json', 401,
+              [('WWW-Authenticate', 'Bearer'), ('Cache-Control', 'no-store')]),
+             401, b'application/json', b'{"error":"Unauthorized"}',
+             [(b'www-authenticate', b'Bearer'), (b'cache-control', b'no-store')]),
+            ((b'', 'text/plain', 303,
+              [('Location', '/ui'), ('X-Label', 'caf\u00e9'),
+               ('Set-Cookie', 'a=1; Secure'), ('Set-Cookie', 'b=2; Secure')]),
+             303, b'text/plain', b'',
+             [(b'location', b'/ui'), (b'x-label', b'caf\xe9'),
+              (b'set-cookie', b'a=1; Secure'), (b'set-cookie', b'b=2; Secure')]),
+            (([], 'application/json', 200, []), 200, b'application/json', b'[]', []),
+        ]
+        for response, status, content_type, body, headers in cases:
+            with self.subTest(response=response):
+                async def receive():
+                    raise AssertionError('These responses do not use a request body')
+
+                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
+                self.assertEqual(messages, [
+                    {'type': 'http.response.start', 'status': status,
+                     'headers': [(b'content-type', content_type)] + headers},
+                    {'type': 'http.response.body', 'body': body},
+                ])
+
+
+if __name__ == '__main__':
+    unittest.main()

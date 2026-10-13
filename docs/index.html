@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Wred is a tiny Python/ASGI backend for HTML and JavaScript apps. Roll a route. Pass some JSON. Ship that shit.">
+  <title>Wred — a tiny Python/ASGI backend</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; color: #702a36; background: #fff8f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: 100%; }
+    .intro { text-align: center; padding: clamp(12px, 4dvh, 40px) 32px clamp(24px, 6dvh, 64px); }
+    h1 { margin: 0; }
+    h1 img { display: block; width: min(680px, 100%, 70dvh); height: auto; margin: auto; }
+    .intro p { margin: 16px auto 0; max-width: 800px; font-size: clamp(22px, 2.3vw, 30px); line-height: 1.5; }
+    .tagline { color: #bb2037; font-weight: 700; }
+    a { color: inherit; text-underline-offset: 4px; }
+    a:hover { color: #c92432; }
+    a:focus-visible { outline: 2px solid #c92432; outline-offset: 5px; }
+    footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; padding: 40px 24px; font-size: 18px; }
+    .terminal { background: #fff0f0; border-top: 2px solid #dc8994; }
+    pre { margin: 0; padding: clamp(12px, 3vw, 32px); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: #702a36; font: 20px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
+    code { font: inherit; }
+    .enhanced .stage { position: sticky; top: 0; height: 100dvh; }
+    .enhanced .intro { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; background: #fff8f8; }
+    .enhanced .terminal-track { position: absolute; inset: 0; }
+    .enhanced .terminal { height: 100%; opacity: 0; }
+    .enhanced .terminal pre { height: 100%; overflow-y: hidden; }
+    .typing code::after { content: '▍'; color: #c92432; }
+    .token-command, .token-keyword { color: #c11e39; font-weight: 700; }
+    .token-string { color: #a3482d; }
+    .token-comment { color: #8e6670; font-style: italic; }
+    .token-tag { color: #a51e4c; font-weight: 700; }
+    .token-number { color: #a32f59; }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @media (max-width: 700px) {
+      .intro { padding-left: 12px; padding-right: 12px; }
+      .intro p { font-size: clamp(18px, 5vw, 24px); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="stage">
+    <header class="intro">
+      <h1><a href="https://harrisonerd.com/wred"><img src="wred-logo.png" alt="Wred" width="1774" height="887"></a></h1>
+      <p>A tiny Python/ASGI backend for HTML and JavaScript apps.</p>
+      <p class="tagline">Roll a route. Pass some JSON. Ship that shit.</p>
+    </header>
+    <section class="terminal-track" aria-label="Scroll through installation and example files">
+      <div class="terminal">
+      <pre id="source" aria-label="Installation and example files"><code>$ git clone https://gitman.io/git/patx/wred
+$ cd wred
+$ uv sync
+
+$ cat &gt; app.py &lt;&lt;'EOF'
+from wred import App
+
+app = App()
+
+@app.route('/')
+async def index(request):
+    return await app.static('index.html', root='static')
+
+@app.route('/data')
+async def populate(request):
+    return [{"name": "Jim", "email": "jim@gmail.com"}]
+EOF
+
+$ mkdir -p static
+$ cat &gt; static/index.html &lt;&lt;'EOF'
+&lt;ul id="users"&gt;&lt;/ul&gt;
+&lt;script type="module"&gt;
+  const users = await fetch('/data').then(r =&gt; r.json());
+  for (const user of users) {
+    const li = document.createElement('li');
+    li.textContent = `${user.name} (${user.email})`;
+    document.querySelector('#users').append(li);
+  }
+&lt;/script&gt;
+EOF
+
+$ uv run granian --interface asginl app:app
+</code></pre>
+      </div>
+    </section>
+    </div>
+  </main>
+  <footer>
+    <a href="https://gitman.io/patx/wred">Source on Gitman</a>
+    <a href="https://harrisonerd.com">© 2026 Harrison Erd</a>
+  </footer>
+  <script>
+    const source = document.querySelector('#source');
+    const text = source.textContent;
+    const main = document.querySelector('main');
+    const stage = document.querySelector('.stage');
+    const intro = document.querySelector('.intro');
+    const terminal = document.querySelector('.terminal');
+    const screen = source.cloneNode(true);
+    screen.removeAttribute('id');
+    screen.removeAttribute('aria-label');
+    screen.setAttribute('aria-hidden', 'true');
+    source.classList.add('sr-only');
+    source.after(screen);
+    const code = screen.querySelector('code');
+    code.replaceChildren();
+    const tokens = [];
+    let offset = 0;
+    let mode = 'shell';
+
+    // Highlight once, then reveal the same text nodes as the page scrolls.
+    const syntax = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(#.*|\/\/.*)|(<\/?[a-z][\w-]*)|\b(from|import|async|def|return|await|const|for|of|new|if|throw|try|catch)\b|\b\d+\b/g;
+    function add(value, type = '') {
+      const span = document.createElement('span');
+      if (type) span.className = `token-${type}`;
+      const node = document.createTextNode('');
+      span.append(node);
+      code.append(span);
+      tokens.push({ node, value, start: offset });
+      offset += value.length;
+    }
+    for (const line of text.split(/(?<=\n)/)) {
+      if (line.startsWith('$')) {
+        add(line, 'command');
+        if (line.includes('cat > app.py')) mode = 'python';
+        if (line.includes('cat > static/index.html')) mode = 'html';
+      } else if (line.trim() === 'EOF') {
+        add(line, 'command');
+        mode = 'shell';
+      } else if (mode === 'shell') {
+        add(line);
+      } else {
+        let end = 0;
+        for (const match of line.matchAll(syntax)) {
+          add(line.slice(end, match.index));
+          const type = match[1] ? 'string' : match[2] ? 'comment' : match[3] ? 'tag' : match[4] ? 'keyword' : 'number';
+          add(match[0], type);
+          end = match.index + match[0].length;
+        }
+        add(line.slice(end));
+      }
+    }
+
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let scheduled = false;
+    let previousLength = -1;
+    const fadeDistance = 140;
+    const typingDistance = 900;
+    function reveal() {
+      scheduled = false;
+      const scroll = Math.max(0, -main.getBoundingClientRect().top);
+      const fade = reducedMotion.matches ? 0 : Math.min(1, scroll / fadeDistance);
+      intro.style.opacity = 1 - fade;
+      intro.inert = fade === 1;
+      terminal.style.opacity = reducedMotion.matches ? 1 : fade;
+      const progress = Math.min(1, scroll / typingDistance);
+      const length = reducedMotion.matches ? text.length : Math.floor(progress * text.length);
+      if (length === previousLength) return;
+      previousLength = length;
+      for (const token of tokens) {
+        const visible = token.value.slice(0, Math.max(0, length - token.start));
+        if (token.node.data !== visible) token.node.data = visible;
+      }
+      screen.classList.toggle('typing', length < text.length);
+      screen.scrollTop = screen.scrollHeight;
+    }
+    function schedule() {
+      if (!scheduled) { scheduled = true; requestAnimationFrame(reveal); }
+    }
+    function layout() {
+      document.documentElement.classList.toggle('enhanced', !reducedMotion.matches);
+      screen.style.fontSize = '';
+      if (!reducedMotion.matches) {
+        // Fit the complete example, including wrapped lines, to this viewport.
+        const measure = document.createElement('pre');
+        measure.setAttribute('aria-hidden', 'true');
+        measure.textContent = text;
+        measure.style.cssText = `position:fixed; visibility:hidden; pointer-events:none; width:${screen.clientWidth}px; height:auto; font-weight:700;`;
+        document.body.append(measure);
+        let small = 1;
+        let large = 20;
+        for (let step = 0; step < 10; step++) {
+          const size = (small + large) / 2;
+          measure.style.fontSize = `${size}px`;
+          if (measure.scrollHeight <= screen.clientHeight - 4) small = size;
+          else large = size;
+        }
+        screen.style.fontSize = `${small}px`;
+        measure.remove();
+      }
+      main.style.height = reducedMotion.matches ? '' : `${stage.offsetHeight + typingDistance + 100}px`;
+      previousLength = -1;
+      schedule();
+    }
+    addEventListener('scroll', schedule, { passive: true });
+    addEventListener('resize', layout);
+    reducedMotion.addEventListener('change', layout);
+    layout();
+  </script>
+</body>
+</html>
