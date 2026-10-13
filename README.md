@@ -56,7 +56,9 @@ And smoke it:
 uv run granian --interface asginl app:app
 ```
 
-`asginl` disables lifespan handling. Wred doesn't implement it.
+`asginl` disables lifespan handling. Wred is HTTP-only and rejects lifespan,
+WebSocket, and other unsupported scopes with `RuntimeError`, without sending
+HTTP messages. This follows the [ASGI protocol guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
 
 The server can run a middleware wrapper around Wred as its `app` too.
 [Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)

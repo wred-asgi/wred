@@ -72,8 +72,7 @@ class App:
     async def __call__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
         """Handle ASGI requests."""
         if scope['type'] != 'http':
-            await self.send_response(send, {"error": "Unsupported scope type"}, status=400)
-            return
+            raise RuntimeError(f"Unsupported ASGI scope type: {scope['type']}")
 
         request = Request(scope, receive, send)
         await self.handle_http(request)
@@ -90,10 +89,7 @@ class App:
             if path in self.routes and method in self.routes[path]:
                 handler = self.routes[path][method]
                 response = await handler(request)
-                if callable(response):
-                    await response(request.scope, request.receive, request.send)
-                else:
-                    await self.send_response(request.send, response)
+                await self.dispatch_response(request, response)
                 return
 
             # Check dynamic routes
@@ -102,10 +98,7 @@ class App:
                 if params is not None and method in method_handlers:
                     handler = method_handlers[method]
                     response = await handler(request, **params)
-                    if callable(response):
-                        await response(request.scope, request.receive, request.send)
-                    else:
-                        await self.send_response(request.send, response)
+                    await self.dispatch_response(request, response)
                     return
 
             # No match found
@@ -114,6 +107,13 @@ class App:
         except (WredResponseError, WredRequestError) as e:
             status = 400 if isinstance(e, WredRequestError) else 500
             await self.send_response(request.send, {"error": str(e)}, status=status)
+
+    async def dispatch_response(self, request: Request, response: Any) -> None:
+        """Invoke an ASGI response or serialize an ordinary handler result."""
+        if callable(response):
+            await response(request.scope, request.receive, request.send)
+        else:
+            await self.send_response(request.send, response)
 
     async def send_response(self, send: Callable[[dict[str, Any]], Awaitable[None]], response: Any, status: int = 200) -> None:
         """Send JSON or (body, content_type, status[, headers]) with string header pairs."""

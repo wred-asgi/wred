@@ -292,18 +292,22 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             {'type': 'http.response.body', 'body': b'{"error":"Client disconnected"}'},
         ])
 
-    async def test_unsupported_scope_does_not_read_http_fields(self):
+    async def test_unsupported_protocols_raise_without_receiving_or_sending(self):
         app = App()
 
         async def receive():
             raise AssertionError('An unsupported scope should not be read')
 
-        messages = await call_app(app, {'type': 'unsupported'}, receive)
-        self.assertEqual(messages, [
-            {'type': 'http.response.start', 'status': 400,
-             'headers': [(b'content-type', b'application/json')]},
-            {'type': 'http.response.body', 'body': b'{"error":"Unsupported scope type"}'},
-        ])
+        for protocol in ['lifespan', 'websocket', 'unsupported']:
+            with self.subTest(protocol=protocol):
+                messages = []
+
+                async def send(message):
+                    messages.append(message)
+
+                with self.assertRaisesRegex(RuntimeError, 'Unsupported ASGI scope type'):
+                    await app({'type': protocol}, receive, send)
+                self.assertEqual(messages, [])
 
     async def test_file_read_failure_returns_404(self):
         app = App()
