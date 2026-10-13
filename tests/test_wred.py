@@ -20,6 +20,43 @@ async def call_app(app, scope, receive):
 
 
 class WredTests(unittest.IsolatedAsyncioTestCase):
+    async def test_callable_responses_control_asgi_delivery_on_fixed_and_dynamic_routes(self):
+        class Response:
+            def __init__(self, name):
+                self.name = name
+
+            async def __call__(self, scope, receive, send):
+                message = await receive()
+                await send({'type': 'http.response.start', 'status': 202,
+                            'headers': [(b'content-type', b'text/plain'), (b'x-response', b'asgi')]})
+                await send({'type': 'http.response.body',
+                            'body': f'{scope["path"]}:{self.name}:'.encode(), 'more_body': True})
+                await send({'type': 'http.response.body', 'body': message['body']})
+
+        app = App()
+
+        @app.route('/fixed', methods=['POST'])
+        async def fixed(request):
+            return Response('fixed')
+
+        @app.route('/dynamic/{name}', methods=['POST'])
+        async def dynamic(request, name):
+            return Response(name)
+
+        for path, prefix in [('/fixed', b'/fixed:fixed:'),
+                             ('/dynamic/alice', b'/dynamic/alice:alice:')]:
+            with self.subTest(path=path):
+                async def receive():
+                    return {'type': 'http.request', 'body': b'payload'}
+
+                messages = await call_app(app, {'type': 'http', 'path': path, 'method': 'POST'}, receive)
+                self.assertEqual(messages, [
+                    {'type': 'http.response.start', 'status': 202,
+                     'headers': [(b'content-type', b'text/plain'), (b'x-response', b'asgi')]},
+                    {'type': 'http.response.body', 'body': prefix, 'more_body': True},
+                    {'type': 'http.response.body', 'body': b'payload'},
+                ])
+
     async def test_file_delivery_and_root_confinement(self):
         # Exercise the public helper through the actual ASGI response boundary.
         # This guards MIME/status delivery and accidental exposure outside root.

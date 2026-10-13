@@ -9,9 +9,9 @@ from unittest.mock import patch
 import orjson
 
 from tests.test_wred import call_app
-from examples import auth, storage, rate_limit
+from example_app import auth, storage, rate_limit
 
-notebook = importlib.import_module('examples.app')
+notebook = importlib.import_module('example_app.app')
 
 
 class NotebookTests(unittest.IsolatedAsyncioTestCase):

@@ -87,7 +87,10 @@ class App:
             if path in self.routes and method in self.routes[path]:
                 handler = self.routes[path][method]
                 response = await handler(request)
-                await self.send_response(request.send, response)
+                if callable(response):
+                    await response(request.scope, request.receive, request.send)
+                else:
+                    await self.send_response(request.send, response)
                 return
 
             # Check dynamic routes
@@ -96,7 +99,10 @@ class App:
                 if params is not None and method in method_handlers:
                     handler = method_handlers[method]
                     response = await handler(request, **params)
-                    await self.send_response(request.send, response)
+                    if callable(response):
+                        await response(request.scope, request.receive, request.send)
+                    else:
+                        await self.send_response(request.send, response)
                     return
 
             # No match found

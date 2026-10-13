@@ -130,6 +130,11 @@ not a Wred-specific session property. Its cookies are signed, not encrypted.
 Return a dict or list for JSON with HTTP 200. Return bytes for
 `application/octet-stream`. No `json()` helper. No ceremony.
 
+Handlers can also return callable ASGI response objects. Wred awaits them with
+`(scope, receive, send)`, letting the response handle its own headers, status,
+and body. Response classes from ASGI libraries can work directly; Wred doesn't
+need a dependency or adapter for them.
+
 For a custom response, return `(body, content_type, status)` or
 `(body, content_type, status, headers)`. Headers are a list of string pairs,
 so repeated headers such as `Set-Cookie` work too.
