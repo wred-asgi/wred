@@ -81,6 +81,9 @@ class App:
     async def handle_http(self, request: Request) -> None:
         """Handle HTTP requests with routing and JSON response support."""
         path = request.path
+        root_path = request.scope.get('root_path', '').rstrip('/')
+        if root_path and (path == root_path or path.startswith(root_path + '/')):
+            path = path[len(root_path):] or '/'
         method = request.method
         try:
             # Check exact matches first

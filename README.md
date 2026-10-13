@@ -89,6 +89,10 @@ over dynamic routes for the requested method; dynamic routes are checked in
 registration order. Registering the same path and method again replaces its handler.
 Unmatched paths or methods return JSON 404. No automatic HEAD, OPTIONS, or 405.
 
+Mounted apps resolve routes relative to the ASGI `root_path`: a Wred route
+`/users` mounted at `/api` handles `/api/users`. `request.path` and the original
+ASGI scope keep the full incoming path for middleware and response objects.
+
 ## Requests
 
 | API | What you get |

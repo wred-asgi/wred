@@ -43,19 +43,66 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         async def dynamic(request, name):
             return Response(name)
 
-        for path, prefix in [('/fixed', b'/fixed:fixed:'),
-                             ('/dynamic/alice', b'/dynamic/alice:alice:')]:
+        for path, root_path, prefix in [
+            ('/fixed', '', b'/fixed:fixed:'),
+            ('/dynamic/alice', '', b'/dynamic/alice:alice:'),
+            ('/api/fixed', '/api', b'/api/fixed:fixed:'),
+            ('/api/dynamic/alice', '/api', b'/api/dynamic/alice:alice:'),
+        ]:
             with self.subTest(path=path):
                 async def receive():
                     return {'type': 'http.request', 'body': b'payload'}
 
-                messages = await call_app(app, {'type': 'http', 'path': path, 'method': 'POST'}, receive)
+                messages = await call_app(app, {
+                    'type': 'http', 'path': path, 'root_path': root_path, 'method': 'POST',
+                }, receive)
                 self.assertEqual(messages, [
                     {'type': 'http.response.start', 'status': 202,
                      'headers': [(b'content-type', b'text/plain'), (b'x-response', b'asgi')]},
                     {'type': 'http.response.body', 'body': prefix, 'more_body': True},
                     {'type': 'http.response.body', 'body': b'payload'},
                 ])
+
+    async def test_mounted_routing_uses_complete_root_path_without_changing_scope(self):
+        app = App()
+
+        @app.route('/items/{name}')
+        async def item(request, name):
+            return {'route': name, 'path': request.path, 'scope_path': request.scope['path']}
+
+        @app.route('/items/special')
+        @app.route('/')
+        @app.route('/apiary/items')
+        async def fixed(request):
+            return {'route': 'fixed', 'path': request.path, 'scope_path': request.scope['path']}
+
+        cases = [
+            ('/items/alice', None, 'alice'),
+            ('/items/alice', '', 'alice'),
+            ('/api/items/alice', '/api', 'alice'),
+            ('/api/items/alice', '/api/', 'alice'),
+            ('/api/items/special', '/api', 'fixed'),
+            ('/proxy/api/items/alice', '/proxy/api', 'alice'),
+            ('/api', '/api', 'fixed'),
+            ('/api/', '/api', 'fixed'),
+            ('/items/alice', '/api', 'alice'),
+            ('/apiary/items', '/api', 'fixed'),
+        ]
+        for path, root_path, route in cases:
+            with self.subTest(path=path, root_path=root_path):
+                async def receive():
+                    raise AssertionError('GET handlers should not read a body')
+
+                scope = {'type': 'http', 'path': path, 'method': 'GET'}
+                if root_path is not None:
+                    scope['root_path'] = root_path
+                original = scope.copy()
+                messages = await call_app(app, scope, receive)
+                self.assertEqual(messages[0]['status'], 200)
+                self.assertEqual(orjson.loads(messages[1]['body']), {
+                    'route': route, 'path': path, 'scope_path': path,
+                })
+                self.assertEqual(scope, original)
 
     async def test_file_delivery_and_root_confinement(self):
         # Exercise the public helper through the actual ASGI response boundary.
