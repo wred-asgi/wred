@@ -14,9 +14,9 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 
 ## What you don't get
 
-Auth, sessions, databases, validation schemas, templates, CORS, CSRF protection,
-rate limiting, dependency injection, generated docs, background jobs, WebSockets,
-or built-in streaming.
+Auth, sessions, databases, validation schemas, templates, form or multipart
+parsing, CORS, CSRF protection, rate limiting, dependency injection, generated
+docs, background jobs, WebSockets, or built-in streaming.
 
 Use existing ASGI middleware for CORS, authentication, sessions, or compression.
 [Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
