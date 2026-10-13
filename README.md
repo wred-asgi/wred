@@ -174,7 +174,7 @@ aren't caught by Wred; fix your shit or handle them in your application.
 
 ## Example app
 
-The [`example_app`](example_app/app.py) notebook demonstrates signup, login,
+The [`example_app`](https://gitman.io/patx/wred/src/example_app) notebook demonstrates signup, login,
 refresh cookies, logout, protected endpoints, note CRUD, and rate limiting.
 Those features belong to the example, not the framework.
 
