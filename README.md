@@ -1,44 +1,41 @@
 # Wred
 
-Wred handles HTTP routing, requests, and JSON responses. Need CORS, sessions,
-authentication, or compression? Wrap it with existing ASGI middleware.
-No need to reinvent what ASGI already makes possible.
+A tiny Python/ASGI backend for HTML and JavaScript apps. One file. JSON from
+`orjson`, server from Granian. Pronounced "red".
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
-Oh, and it's pronounced "red", like the color.
-
 ## What you get
 
-- Async handlers and a route decorator.
-- Request headers, cached body reads, and JSON parsing.
-- JSON responses (dicts and lists) & static file serving.
-- Response tuples: `(body, content_type, status[, headers])`.
+- Async handlers, explicit HTTP methods, and fixed or parameterized routes.
+- Headers, query parameters, cached body reads, and JSON parsing.
+- JSON responses, custom response tuples, and a small-file helper.
+- Callable ASGI response support and routing relative to mounted paths.
 
 ## What you don't get
 
 Auth, sessions, databases, validation schemas, templates, CORS, CSRF protection,
 rate limiting, dependency injection, generated docs, background jobs, WebSockets,
-streaming, or a reason to argue about folder structure.
+or built-in streaming.
 
-Your application chooses those pieces. Use existing libraries without making
-them everyone else's dependency. Wred doesn't need to know they exist.
+Use existing ASGI middleware for CORS, authentication, sessions, or compression.
+[Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
+can wrap Wred directly. Your app chooses its dependencies; Wred doesn't need to
+know they exist.
 
-## Use it
+## Install and run
 
-Python 3.11+. Install from PyPI:
-
-Procure your goods, yeah, use `uv` not `pip`, its 2026:
+Python 3.11+. For a new project:
 
 ```bash
-$ uv init my-app
-$ cd my-app
-$ uv add wred
+uv init my-app
+cd my-app
+uv add wred
 ```
 
-Already have a uv project? Just run `uv add wred`. Granian and orjson come with it.
+In an existing uv project, just `uv add wred`. Granian and orjson are included.
 
-Put this in your pipe (`app.py`):
+Save as `app.py`:
 
 ```python
 from wred import App
@@ -46,7 +43,7 @@ from wred import App
 app = App()
 
 @app.route('/')
-async def say_hello(request):
+async def hello(request):
     return {'hello': 'world'}
 ```
 
@@ -56,21 +53,15 @@ And smoke it:
 uv run granian --interface asginl app:app
 ```
 
-`asginl` disables lifespan handling. Wred is HTTP-only and rejects lifespan,
-WebSocket, and other unsupported scopes with `RuntimeError`, without sending
-HTTP messages. This follows the [ASGI protocol guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
-
-The server can run a middleware wrapper around Wred as its `app` too.
-[Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
-works with other ASGI applications: CORS, GZip, TrustedHost, HTTPS redirects,
-and cookie sessions are available without changing Wred. Install only what
-your app needs; Starlette isn't a Wred dependency. Choose standard ASGI wrappers
-rather than integrations that require another framework's application internals.
+Open <http://127.0.0.1:8000>. Wred is HTTP-only; `asginl` disables lifespan.
+Unsupported protocols raise `RuntimeError` without sending HTTP messages,
+following [ASGI guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
+You can also export a middleware wrapper as `app`.
 
 ## Routes
 
-Handlers are async. The first argument is the request. `methods` defaults to
-`['GET']`; path parameters arrive as strings, passed by keyword.
+Handlers are async and receive a request. Methods default to `['GET']`;
+path parameters are strings passed by keyword.
 
 ```python
 @app.route('/users/{user_id}')
@@ -86,95 +77,63 @@ async def update_user(request, user_id):
     return {'id': user_id, 'method': request.method}
 ```
 
-Different handlers can share a path with different methods. Fixed routes win
-over dynamic routes for the requested method; dynamic routes are checked in
-registration order. Registering the same path and method again replaces its handler.
+Different methods can have separate handlers on the same path. Fixed routes
+win over dynamic routes for that method; dynamic routes follow registration
+order. Registering the same path and method again replaces its handler.
 Unmatched paths or methods return JSON 404. No automatic HEAD, OPTIONS, or 405.
 
-Mounted apps resolve routes relative to the ASGI `root_path`: a Wred route
-`/users` mounted at `/api` handles `/api/users`. `request.path` and the original
-ASGI scope keep the full incoming path for middleware and response objects.
+Mounting at `/api` makes a `/users` route handle `/api/users`. Routing respects
+`root_path`; `request.path` and the original scope keep the full incoming path.
 
 ## Requests
 
-| API | What you get |
+| API | Returns |
 | --- | --- |
-| `request.path` | URL path, without the query string. |
-| `request.method` | HTTP method, such as `GET` or `POST`. |
-| `request.headers` | Dictionary of decoded headers; use lowercase names. |
-| `request.scope` | Raw ASGI scope: query string, client address, scheme, etc. |
-| `await request.body()` | Raw bytes, cached after the first read. |
+| `request.path` | Path without the query string. |
+| `request.method` | HTTP method. |
+| `request.headers` | Decoded header dict; use lowercase keys. |
+| `request.scope` | Original ASGI scope, including client, scheme, and middleware state. |
+| `request.query()` | Cached dict of string keys and values. No `await`. |
+| `await request.body()` | Cached raw bytes. |
 | `await request.json()` | Parsed JSON; an empty body becomes `{}`. |
 
-JSON parsing isn't validation. Arrays and scalars parse too. Check your own inputs.
-
 ```python
-from urllib.parse import parse_qs
-from wred import WredRequestError
-
-@app.route('/echo', methods=['POST'])
-async def echo(request):
-    data = await request.json()
-    if not isinstance(data, dict):
-        raise WredRequestError('Send a JSON object')
-    return {'received': data}
-
 @app.route('/search')
 async def search(request):
-    query = parse_qs(request.scope.get('query_string', b'').decode('utf-8'))
-    return {'q': query.get('q', [''])[0]}
+    return {'q': request.query().get('q', '')}
 ```
 
-Read a bearer credential with `request.headers.get('authorization', '')`.
-Check it in your application or let authentication middleware populate the ASGI
-scope, then enforce access in your handlers. Middleware can also add session
-data: Starlette's SessionMiddleware exposes it through `request.scope['session']`,
-not a Wred-specific session property. Its cookies are signed, not encrypted.
+Query parameters preserve blank values; repeated keys keep the last value.
+JSON can be an object, array, or scalar. Validate inputs and convert types yourself.
+
+Authentication middleware can populate the scope for handlers to check.
+Starlette's SessionMiddleware uses `request.scope['session']`; its cookies are
+signed, not encrypted. Wred doesn't supply a session property.
 
 ## Responses
 
-Return a dict or list for JSON with HTTP 200. Return bytes for
-`application/octet-stream`. No `json()` helper. No ceremony.
+Dicts and lists become JSON with HTTP 200. Bytes default to
+`application/octet-stream`. Custom responses use
+`(body, content_type, status[, headers])`:
 
-Handlers can also return callable ASGI response objects. Wred awaits them with
-`(scope, receive, send)`, letting the response handle its own headers, status,
-and body. Response classes from ASGI libraries can work directly; Wred doesn't
-need a dependency or adapter for them.
+| Handler return | Response |
+| --- | --- |
+| `{'hello': 'world'}` | JSON object, 200. |
+| `[{'id': 1}, {'id': 2}]` | JSON array, 200. |
+| `b'hello', 'text/plain', 200` | Text response. |
+| `{'id': 3}, 'application/json', 201, [('Location', '/items/3')]` | Created resource with a custom header. |
+| `b'', 'text/plain', 303, [('Location', '/')]` | Redirect. |
+| `b'', 'application/json', 204` | No content. |
 
-For a custom response, return `(body, content_type, status)` or
-`(body, content_type, status, headers)`. Headers are a list of string pairs,
-so repeated headers such as `Set-Cookie` work too.
+Dicts and lists always use `application/json`, including inside tuples.
+Other tuple bodies must be bytes. Headers are string pairs; repeated
+`Set-Cookie` headers are supported.
 
-```python
-@app.route('/items')
-async def items(request):
-    return [{'id': 1}, {'id': 2}]
-
-@app.route('/items', methods=['POST'])
-async def create_item(request):
-    return {'id': 3}, 'application/json', 201, [('Location', '/items/3')]
-
-@app.route('/old')
-async def redirect(request):
-    return b'', 'text/plain', 303, [('Location', '/')]
-
-@app.route('/items/{item_id}', methods=['DELETE'])
-async def delete_item(request, item_id):
-    return b'', 'application/json', 204
-```
-
-Dicts and lists always get `application/json`, even inside a tuple.
-Other bodies must be bytes: encode text yourself, for example
-`return 'hello'.encode(), 'text/plain; charset=utf-8', 200`.
-Custom headers can carry cookies, cache policies, CORS rules, or `Retry-After`;
-Wred sends them, you decide what they mean.
-For behavior across every route, an ASGI wrapper can intercept requests and
-responses to apply CORS or compression. Keep that plumbing out of your handlers.
+Return a callable ASGI response object to let it manage status, headers, and
+body through `(scope, receive, send)`. Reuse external response classes for
+streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
 
 ## Static files
-
-`await app.static(filename, root=directory)` returns `(bytes, content_type, status)`.
-The root is required and accepts a string or `Path`.
 
 ```python
 from pathlib import Path
@@ -190,22 +149,24 @@ async def asset(request, filename):
     return await app.static(filename, root=static_root)
 ```
 
-The helper guesses the MIME type and rejects files outside the root, including
-symlink escapes. Missing or unreadable files return a plain-text 404. Files are
-read in a worker thread, entirely into memory. Small files. Don't feed it a movie.
+`static(filename, root=...)` returns `(bytes, content_type, status)`.
+The root is required and accepts a string or `Path`. MIME types are guessed;
+missing, unreadable, or outside-root files return plain-text 404, including
+symlink escapes. Files are read in a worker thread, entirely into memory.
+Small files. Don't feed it a movie.
 
 ## Errors
 
-Malformed JSON and `WredRequestError` become HTTP 400 with `{'error': message}`.
-Unsupported handler response types become JSON 500 errors. Other exceptions
-aren't caught by Wred; fix your shit or handle them in your application.
+Malformed JSON, invalid UTF-8 query strings, and `WredRequestError` produce
+JSON 400 responses: `{'error': message}`. Raise `WredRequestError` from a handler
+for application validation failures. Unsupported response types produce JSON
+500 errors; other exceptions propagate.
 
 ## Example app
 
-The [`example_app`](https://gitman.io/patx/wred/src/example_app) notebook demonstrates signup, login,
-refresh cookies, logout, protected endpoints, note CRUD, and rate limiting.
-Those features belong to the example, not the framework.
-Clone the repository to try it:
+The [notebook demo](https://gitman.io/patx/wred/src/example_app) includes signup,
+login, refresh cookies, logout, protected note CRUD, and rate limiting.
+Those features belong to the app, not Wred.
 
 ```bash
 git clone https://gitman.io/git/patx/wred
@@ -214,12 +175,12 @@ uv sync
 uv run granian --interface asginl --workers 1 example_app.app:app
 ```
 
-Open <http://127.0.0.1:8000>. Demo data lives in memory and disappears on restart.
+Open <http://127.0.0.1:8000>. Data lives in memory and disappears on restart.
 
 ## Benchmarks
 
-`GET /` returning `{"hello": "world"}`, measured on October 13, 2026.
-Three runs per framework, with the run order rotated each round.
+`GET /` returning `{"hello": "world"}` on October 13, 2026. Three runs per
+framework, rotating their order each round.
 
 | Framework | Median requests/sec | Min | Max |
 | --- | ---: | ---: | ---: |
@@ -228,10 +189,9 @@ Three runs per framework, with the run order rotated each round.
 | MicroPie 0.32 | 207,720 | 197,520 | 216,010 |
 
 Python 3.14.4, Granian 2.8.4, eight workers, HTTP/1 keep-alive, asyncio,
-and access logging disabled. `wrk -t4 -c256 -d20s --latency`, after a
-five-second warmup for each run. Client and server shared the same machine
-over loopback. All nine measured runs had zero socket errors or non-success responses.
+no access logging. `wrk -t4 -c256 -d20s --latency`, five-second warmups.
+Client and server shared a machine over loopback. All nine measured runs had
+zero socket errors or non-success responses.
 
-Wred delivered about 31% more requests/sec than MicroPie in this workload.
-It's a tiny JSON response, not your database, auth, or entire application.
-Benchmark your own shit.
+About 31% more requests/sec than MicroPie for this workload. It's a tiny JSON
+response, not your whole application. Benchmark your own shit.

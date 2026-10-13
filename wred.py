@@ -10,7 +10,7 @@ Copyright (c) 2026, Harrison Erd.
 
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
-__version__ = '0.02'
+__version__ = '0.03'
 __license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable
@@ -18,6 +18,7 @@ from asyncio import to_thread
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 import orjson
 
 
@@ -40,6 +41,16 @@ class Request:
         self.method = scope['method']
         self.headers = {k.decode(): v.decode() for k, v in scope.get('headers', [])}
         self._body = None
+        self._query = None
+
+    def query(self) -> dict[str, str]:
+        """Parse and cache query parameters; repeated keys keep their last value."""
+        if self._query is None:
+            try:
+                self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode('utf-8'), keep_blank_values=True))
+            except UnicodeDecodeError:
+                raise WredRequestError("Invalid query string")
+        return self._query
 
     async def body(self) -> bytes:
         """Read the request body from the ASGI receive stream."""

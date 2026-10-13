@@ -237,6 +237,36 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(messages[0]['status'], 200)
                 self.assertEqual(messages[1]['body'], body)
 
+    async def test_query_parameters_decode_to_strings_without_reading_body(self):
+        app = App()
+
+        @app.route('/search')
+        async def search(request):
+            return {'params': request.query(), 'q': request.query().get('q', '')}
+
+        cases = [
+            (None, 200, {'params': {}, 'q': ''}),
+            (b'', 200, {'params': {}, 'q': ''}),
+            (b'q=coffee+ideas&limit=20', 200,
+             {'params': {'q': 'coffee ideas', 'limit': '20'}, 'q': 'coffee ideas'}),
+            (b'q=C%2B%2B&label=caf%C3%A9&x%26y=a%3Db', 200,
+             {'params': {'q': 'C++', 'label': 'café', 'x&y': 'a=b'}, 'q': 'C++'}),
+            (b'q=&bare&tag=first&tag=last', 200,
+             {'params': {'q': '', 'bare': '', 'tag': 'last'}, 'q': ''}),
+            (b'\xff', 400, {'error': 'Invalid query string'}),
+        ]
+        for query_string, status, body in cases:
+            with self.subTest(query_string=query_string):
+                async def receive():
+                    raise AssertionError('Query parsing should not read the request body')
+
+                scope = {'type': 'http', 'path': '/search', 'method': 'GET'}
+                if query_string is not None:
+                    scope['query_string'] = query_string
+                messages = await call_app(app, scope, receive)
+                self.assertEqual(messages[0]['status'], status)
+                self.assertEqual(orjson.loads(messages[1]['body']), body)
+
     async def test_streamed_body_is_cached_and_headers_are_available(self):
         app = App()
         reads = 0
