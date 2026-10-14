@@ -1,7 +1,6 @@
 # Wred
 
-A tiny Python/ASGI backend for HTML and JavaScript apps. One file. JSON from
-`orjson`, server from Granian. Pronounced "red".
+[Wred](https://harrisonerd.com/wred) A tiny and fast Python/ASGI backend JavaScript web apps. Pronounced "red".
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
@@ -11,6 +10,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses, custom response tuples, and a small-file helper.
 - Callable ASGI response support and routing relative to mounted paths.
+- Depends on `granian` and `orjson`. You don't have to use Granian however.
 
 ## What you don't get
 
@@ -20,7 +20,7 @@ docs, background jobs, WebSockets, or built-in streaming.
 
 Use existing ASGI middleware for CORS, authentication, sessions, or compression.
 [Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
-can wrap Wred directly. Your app chooses its dependencies; Wred doesn't need to
+can wrap Wred directly for example... Your app chooses its dependencies; Wred doesn't need to
 know they exist.
 
 ## Install and run
@@ -28,14 +28,10 @@ know they exist.
 Python 3.11+. For a new project:
 
 ```bash
-uv init my-app
-cd my-app
-uv add wred
+pip install wred
 ```
 
-In an existing uv project, just `uv add wred`. Granian and orjson are included.
-
-Save as `app.py`:
+Save the following in `app.py`:
 
 ```python
 from wred import App
@@ -47,10 +43,10 @@ async def hello(request):
     return {'hello': 'world'}
 ```
 
-And smoke it:
+Run it with Granian, or any other ASGI server you like:
 
 ```bash
-uv run granian --interface asginl app:app
+granian --interface asginl app:app
 ```
 
 Open <http://127.0.0.1:8000>. Wred is HTTP-only; `asginl` disables lifespan.
@@ -162,36 +158,18 @@ JSON 400 responses: `{'error': message}`. Raise `WredRequestError` from a handle
 for application validation failures. Unsupported response types produce JSON
 500 errors; other exceptions propagate.
 
-## Example app
-
-The [notebook demo](https://gitman.io/patx/wred/src/example_app) includes signup,
-login, refresh cookies, logout, protected note CRUD, and rate limiting.
-Those features belong to the app, not Wred.
-
-```bash
-git clone https://gitman.io/git/patx/wred
-cd wred
-uv sync
-uv run granian --interface asginl --workers 1 example_app.app:app
-```
-
-Open <http://127.0.0.1:8000>. Data lives in memory and disappears on restart.
-
 ## Benchmarks
 
-`GET /` returning `{"hello": "world"}` on October 13, 2026. Three runs per
-framework, rotating their order each round.
+`GET /` returning `{"hello": "world"}`. Three runs per framework, rotating their order each round.
 
 | Framework | Median requests/sec | Min | Max |
 | --- | ---: | ---: | ---: |
-| Wred 0.01 | **272,088** | 262,187 | 277,656 |
+| Wred 0.03 | **272,088** | 262,187 | 277,656 |
 | BlackSheep 2.6.4 | 211,619 | 205,719 | 220,455 |
 | MicroPie 0.32 | 207,720 | 197,520 | 216,010 |
 
 Python 3.14.4, Granian 2.8.4, eight workers, HTTP/1 keep-alive, asyncio,
 no access logging. `wrk -t4 -c256 -d20s --latency`, five-second warmups.
-Client and server shared a machine over loopback. All nine measured runs had
-zero socket errors or non-success responses.
-
-About 31% more requests/sec than MicroPie for this workload. It's a tiny JSON
-response, not your whole application. Benchmark your own shit.
+Client and server shared a machine over loopback. All nine measured runs
+had zero socket errors or non-success responses. It's a tiny JSON response,
+not your whole application. Benchmark your own shit.
