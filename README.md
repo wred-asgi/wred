@@ -78,8 +78,16 @@ win over dynamic routes for that method; dynamic routes follow registration
 order. Registering the same path and method again replaces its handler.
 Unmatched paths or methods return JSON 404. No automatic HEAD, OPTIONS, or 405.
 
-Mounting at `/api` makes a `/users` route handle `/api/users`. Routing respects
-`root_path`; `request.path` and the original scope keep the full incoming path.
+If you mount your Wred application at `/api`, a `/users` route in that app
+would become `/api/users`. Routing respects `root_path`; `request.path` and
+the original scope keep the full incoming path.
+
+Wred deliberately leaves out a mount method to keep the core focused on small
+HTTP APIs. To serve another ASGI app alongside Wred, use an external router such
+as [Starlette's `Router` and `Mount`](https://starlette.dev/routing/): mount the
+other app at `/example` and Wred at `/`, with the catch-all last. This keeps
+application composition and lifecycle decisions outside Wred's core. This works
+with pretty much every ASGI application you can think of.
 
 ## Requests
 
