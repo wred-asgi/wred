@@ -10,7 +10,7 @@ Copyright (c) 2026, Harrison Erd.
 
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
-__version__ = '0.03'
+__version__ = '0.04'
 __license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable

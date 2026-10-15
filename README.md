@@ -10,7 +10,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses, custom response tuples, and a small-file helper.
 - Callable ASGI response support and routing relative to mounted paths.
-- Depends on `granian` and `orjson`. You don't have to use Granian however.
+- Depends on `peregrine-server` and `orjson`. You can use any ASGI server.
 
 ## What you don't get
 
@@ -43,13 +43,13 @@ async def hello(request):
     return {'hello': 'world'}
 ```
 
-Run it with Granian, or any other ASGI server you like:
+Run it with Peregrine, or any other ASGI server you like:
 
 ```bash
-granian --interface asginl app:app
+peregrine app:app
 ```
 
-Open <http://127.0.0.1:8000>. Wred is HTTP-only; `asginl` disables lifespan.
+Open <http://127.0.0.1:8000>. Wred is HTTP-only.
 Unsupported protocols raise `RuntimeError` without sending HTTP messages,
 following [ASGI guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
 You can also export a middleware wrapper as `app`.
@@ -172,11 +172,11 @@ for application validation failures. Unsupported response types produce JSON
 
 | Framework | Median requests/sec | Min | Max |
 | --- | ---: | ---: | ---: |
-| Wred 0.03 | **272,088** | 262,187 | 277,656 |
-| BlackSheep 2.6.4 | 211,619 | 205,719 | 220,455 |
-| MicroPie 0.32 | 207,720 | 197,520 | 216,010 |
+| Wred 0.04 | **553,296** | 544,314 | 585,634 |
+| BlackSheep 2.6.4 | 398,900 | 384,661 | 415,871 |
+| MicroPie 0.32 | 374,680 | 367,513 | 391,136 |
 
-Python 3.14.4, Granian 2.8.4, eight workers, HTTP/1 keep-alive, asyncio,
+Python 3.14.4, Peregrine 1.1.7, eight workers, HTTP/1 keep-alive, asyncio,
 no access logging. `wrk -t4 -c256 -d20s --latency`, five-second warmups.
 Client and server shared a machine over loopback. All nine measured runs
 had zero socket errors or non-success responses. It's a tiny JSON response,
