@@ -54,30 +54,6 @@ Unsupported protocols raise `RuntimeError` without sending HTTP messages,
 following [ASGI guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
 You can also export a middleware wrapper as `app`.
 
-## Notebook example
-
-The repository includes a complete notebook app with signup, login, private notes,
-search, pagination, and JSON export. It uses MongoDB with PyMongo's
-[native async client](https://www.mongodb.com/docs/languages/python/pymongo-driver/current/reference/migration/).
-Install the example's optional dependency from the repository root:
-
-```bash
-uv sync --extra example
-```
-
-Start a local MongoDB server, or use an existing MongoDB deployment. For example,
-with Docker installed:
-
-```bash
-docker run -d --name wred-mongo -p 127.0.0.1:27017:27017 -v wred-mongo-data:/data/db mongo:8
-```
-
-Then start the app and open <http://127.0.0.1:8000>:
-
-```bash
-uv run --extra example weft example_app.app:app
-```
-
 The defaults are `MONGODB_URI=mongodb://127.0.0.1:27017` and
 `MONGODB_DATABASE=wred_notebook`. Set these environment variables to choose another
 server or database. Collections and indexes are created automatically. Accounts,

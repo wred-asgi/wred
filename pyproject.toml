@@ -12,6 +12,3 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [{ name = "Harrison Erd", email = "harrisonerd@gmail.com" }]
 dependencies = ["orjson", "weft-server"]
-
-[project.optional-dependencies]
-example = ["pymongo>=4.13,<5"]
