@@ -55,14 +55,15 @@ class Request:
     async def body(self) -> bytes:
         """Read the request body from the ASGI receive stream."""
         if self._body is None:
-            self._body = b""
+            chunks = []
             while True:
                 message = await self.receive()
                 if message['type'] != 'http.request':
                     raise WredRequestError("Client disconnected")
-                self._body += message.get('body', b'')
+                chunks.append(message.get('body', b''))
                 if not message.get('more_body', False):
                     break
+            self._body = b''.join(chunks)
         return self._body
 
     async def json(self) -> dict[str, Any]:
