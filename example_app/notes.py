@@ -5,7 +5,6 @@ from secrets import token_urlsafe
 
 from wred import WredRequestError
 from .auth import protected
-from .storage import notes
 
 
 async def read_note(request, partial=False):
@@ -27,8 +26,8 @@ async def read_note(request, partial=False):
     return data if partial else {'body': '', 'pinned': False, **data}
 
 
-def owned_note(note_id, user):
-    note = notes.get(note_id)
+async def owned_note(database, note_id, user):
+    note = await database.get_note(note_id)
     if note is None:
         return {'error': 'Note not found'}, 'application/json', 404
     if note['owner'] != user['id']:
@@ -36,11 +35,11 @@ def owned_note(note_id, user):
     return note
 
 
-def register_routes(app):
+def register_routes(app, database):
     """Register note endpoints; each handler requires a valid bearer token."""
 
     @app.route('/api/notes', methods=['GET'])
-    @protected
+    @protected(database)
     async def list_notes(request):
         # Keep this demo's query budget at 20 fields, including repeated keys.
         if request.scope.get('query_string', b'').count(b'&') >= 20:
@@ -57,24 +56,10 @@ def register_routes(app):
         pinned = query.get('pinned', '')
         if pinned not in ('', 'true', 'false'):
             raise WredRequestError('Pinned filter must be true or false')
-        # Apply ownership before searching or counting so other users' data never leaks.
-        items = [note for note in notes.values() if note['owner'] == request.user['id']]
-        items = [
-            note for note in items if search in (note['title'] + '\n' + note['body']).casefold()
-        ]
-        if pinned:
-            items = [note for note in items if note['pinned'] == (pinned == 'true')]
-        # Show pinned notes first, then most recently edited notes within each group.
-        items.sort(key=lambda note: (note['pinned'], note['updated_at'], note['id']), reverse=True)
-        return {
-            'items': items[offset : offset + limit],
-            'total': len(items),
-            'limit': limit,
-            'offset': offset,
-        }
+        return await database.list_notes(request.user['id'], search, pinned, limit, offset)
 
     @app.route('/api/notes', methods=['POST'])
-    @protected
+    @protected(database)
     async def create_note(request):
         data = await read_note(request)
         note_id = token_urlsafe(9)
@@ -86,39 +71,42 @@ def register_routes(app):
             'created_at': now,
             'updated_at': now,
         }
-        notes[note_id] = note
+        await database.create_note(note)
         return note, 'application/json', 201, [('Location', f'/api/notes/{note_id}')]
 
     @app.route('/api/notes/{note_id}', methods=['GET'])
-    @protected
+    @protected(database)
     async def get_note(request, note_id):
-        return owned_note(note_id, request.user)
+        return await owned_note(database, note_id, request.user)
 
     @app.route('/api/notes/{note_id}', methods=['PUT', 'PATCH'])
-    @protected
+    @protected(database)
     async def update_note(request, note_id):
-        note = owned_note(note_id, request.user)
+        note = await owned_note(database, note_id, request.user)
         if isinstance(note, tuple):
             return note
         data = await read_note(request, partial=request.method == 'PATCH')
-        note.update(data)
-        note['updated_at'] = datetime.now(UTC).isoformat(timespec='microseconds')
-        return note
+        data['updated_at'] = datetime.now(UTC).isoformat(timespec='microseconds')
+        updated = await database.update_note(note_id, request.user['id'], data)
+        if updated is None:
+            return {'error': 'Note not found'}, 'application/json', 404
+        return updated
 
     @app.route('/api/notes/{note_id}', methods=['DELETE'])
-    @protected
+    @protected(database)
     async def delete_note(request, note_id):
-        note = owned_note(note_id, request.user)
+        note = await owned_note(database, note_id, request.user)
         if isinstance(note, tuple):
             return note
-        del notes[note_id]
+        if not await database.delete_note(note_id, request.user['id']):
+            return {'error': 'Note not found'}, 'application/json', 404
         return b'', 'application/json', 204
 
     # This fixed path wins over /api/notes/{note_id}, even though it is registered afterward.
     @app.route('/api/notes/export', methods=['GET'])
-    @protected
+    @protected(database)
     async def export_notes(request):
-        items = [note for note in notes.values() if note['owner'] == request.user['id']]
+        items = await database.export_notes(request.user['id'])
         return (
             items,
             'application/json',

@@ -5,11 +5,10 @@ from functools import wraps
 from hashlib import pbkdf2_hmac, sha256
 from http.cookies import CookieError, SimpleCookie
 from secrets import compare_digest, token_bytes, token_urlsafe
-from time import monotonic
+from time import time
 
 from wred import WredRequestError
 from .rate_limit import rate_limit
-from .storage import users, tokens, refresh_tokens
 
 token_lifetime = 3600
 refresh_lifetime = 7 * 24 * 3600
@@ -52,29 +51,13 @@ def read_refresh_cookie(request):
     return morsel.value if morsel else ''
 
 
-def issue_access_token(username, login_id):
-    token = token_urlsafe(32)
-    # Store a digest so the server does not retain the raw bearer credential.
-    digest = sha256(token.encode('utf-8')).hexdigest()
-    # Tag tokens with their login ID so logout can revoke all tokens from that login.
-    tokens[digest] = {
-        'user_id': username,
-        'login_id': login_id,
-        'expires_at': monotonic() + token_lifetime,
-    }
+def token_response(token, username):
     return {
         'access_token': token,
         'token_type': 'bearer',
         'expires_in': token_lifetime,
         'user': {'id': username},
     }
-
-
-def revoke_login(login_id):
-    for store in (tokens, refresh_tokens):
-        for digest, record in list(store.items()):
-            if record['login_id'] == login_id:
-                del store[digest]
 
 
 async def read_credentials(request):
@@ -94,46 +77,39 @@ async def hash_password(password, salt):
     return await to_thread(pbkdf2_hmac, 'sha256', password.encode('utf-8'), salt, 600_000)
 
 
-async def validate_access_token(token):
-    digest = sha256(token.encode('utf-8')).hexdigest()
-    record = tokens.get(digest)
-    if record is None:
-        return None
-    if record['expires_at'] <= monotonic():
-        tokens.pop(digest, None)
-        return None
-    return {'id': record['user_id']}
+def protected(database):
+    def decorator(handler):
+        @wraps(handler)
+        async def wrapper(request, *args, **kwargs):
+            header = request.headers.get('authorization', '')
+            scheme, _, token = header.partition(' ')
+            user = None
+            if scheme.lower() == 'bearer' and token:
+                digest = sha256(token.encode('utf-8')).hexdigest()
+                user = await database.get_access_token(digest, time())
+            if user is None:
+                return (
+                    {'error': 'Unauthorized'},
+                    'application/json',
+                    401,
+                    [('WWW-Authenticate', 'Bearer')],
+                )
+            request.user = {'id': user['user_id']}
+            request.login_id = user['login_id']
+            response = await handler(request, *args, **kwargs)
+            if isinstance(response, tuple):
+                body, content_type, status = response[:3]
+                headers = list(response[3]) if len(response) == 4 else []
+            else:
+                body, content_type, status, headers = response, 'application/json', 200, []
+            return body, content_type, status, headers + [('Cache-Control', 'no-store')]
+
+        return wrapper
+
+    return decorator
 
 
-def protected(handler):
-    @wraps(handler)
-    async def wrapper(request, *args, **kwargs):
-        header = request.headers.get('authorization', '')
-        scheme, _, token = header.partition(' ')
-        user = None
-        if scheme.lower() == 'bearer' and token:
-            user = await validate_access_token(token)
-        if user is None:
-            return (
-                {'error': 'Unauthorized'},
-                'application/json',
-                401,
-                [('WWW-Authenticate', 'Bearer')],
-            )
-        request.user = user
-        request.access_token = token
-        response = await handler(request, *args, **kwargs)
-        if isinstance(response, tuple):
-            body, content_type, status = response[:3]
-            headers = list(response[3]) if len(response) == 4 else []
-        else:
-            body, content_type, status, headers = response, 'application/json', 200, []
-        return body, content_type, status, headers + [('Cache-Control', 'no-store')]
-
-    return wrapper
-
-
-def register_routes(app):
+def register_routes(app, database):
     """Register authentication endpoints on the supplied Wred app."""
 
     @app.route('/api/signup', methods=['POST'])
@@ -142,10 +118,9 @@ def register_routes(app):
         username, password = await read_credentials(request)
         salt = token_bytes(16)
         password_hash = await hash_password(password, salt)
-        # Check after the await so simultaneous signups cannot overwrite the same account.
-        if username in users:
+        # MongoDB's unique _id also handles signups in different workers.
+        if not await database.create_user(username, salt, password_hash):
             return {'error': 'Username already exists'}, 'application/json', 409
-        users[username] = {'salt': salt, 'password_hash': password_hash}
         return {'id': username}, 'application/json', 201
 
     @app.route('/api/login', methods=['POST'])
@@ -159,20 +134,22 @@ def register_routes(app):
             )
         username, password = await read_credentials(request)
         # Use a dummy record for unknown users so failed logins still perform password hashing.
-        record = users.get(username, {'salt': bytes(16), 'password_hash': bytes(32)})
-        password_hash = await hash_password(password, record['salt'])
-        if username not in users or not compare_digest(password_hash, record['password_hash']):
+        record = await database.get_user(username)
+        salt = record['salt'] if record else bytes(16)
+        password_hash = await hash_password(password, salt)
+        if record is None or not compare_digest(password_hash, record['password_hash']):
             return {'error': 'Invalid credentials'}, 'application/json', 401
         login_id = token_urlsafe(16)
         refresh = token_urlsafe(32)
-        # Store only its digest and a fixed absolute expiry; refreshes do not extend this deadline.
-        refresh_tokens[sha256(refresh.encode()).hexdigest()] = {
-            'user_id': username,
-            'login_id': login_id,
-            'expires_at': monotonic() + refresh_lifetime,
-        }
+        access = token_urlsafe(32)
+        now = time()
+        # Persist digests and Unix timestamps so sessions survive restarts.
+        await database.create_login(
+            username, login_id, sha256(refresh.encode()).hexdigest(), now + refresh_lifetime,
+            sha256(access.encode()).hexdigest(), now + token_lifetime,
+        )
         return (
-            issue_access_token(username, login_id),
+            token_response(access, username),
             'application/json',
             200,
             [('Cache-Control', 'no-store'), refresh_cookie(request, refresh, refresh_lifetime)],
@@ -188,33 +165,33 @@ def register_routes(app):
                 403,
             )
         digest = sha256(read_refresh_cookie(request).encode()).hexdigest()
-        record = refresh_tokens.get(digest)
-        if record is None or record['expires_at'] <= monotonic():
-            if record is not None:
-                revoke_login(record['login_id'])
+        access = token_urlsafe(32)
+        now = time()
+        username = await database.refresh_login(
+            digest, sha256(access.encode()).hexdigest(), now + token_lifetime, now,
+        )
+        if username is None:
             return (
                 {'error': 'Unauthorized'},
                 'application/json',
                 401,
                 [('Cache-Control', 'no-store'), refresh_cookie(request, '', 0)],
             )
-        # Reuse the cookie while issuing a fresh memory-only access token; concurrent tabs work.
+        # Reuse the cookie while issuing a fresh access token; concurrent tabs work.
         return (
-            issue_access_token(record['user_id'], record['login_id']),
+            token_response(access, username),
             'application/json',
             200,
             [('Cache-Control', 'no-store')],
         )
 
     @app.route('/api/me')
-    @protected
+    @protected(database)
     async def me(request):
         return request.user
 
     @app.route('/api/logout', methods=['POST'])
-    @protected
+    @protected(database)
     async def logout(request):
-        digest = sha256(request.access_token.encode('utf-8')).hexdigest()
-        login_id = tokens[digest]['login_id']
-        revoke_login(login_id)
+        await database.revoke_login(request.login_id)
         return {'logged_out': True}, 'application/json', 200, [refresh_cookie(request, '', 0)]

@@ -54,6 +54,58 @@ Unsupported protocols raise `RuntimeError` without sending HTTP messages,
 following [ASGI guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
 You can also export a middleware wrapper as `app`.
 
+## Notebook example
+
+The repository includes a complete notebook app with signup, login, private notes,
+search, pagination, and JSON export. It uses MongoDB with PyMongo's
+[native async client](https://www.mongodb.com/docs/languages/python/pymongo-driver/current/reference/migration/).
+Install the example's optional dependency from the repository root:
+
+```bash
+uv sync --extra example
+```
+
+Start a local MongoDB server, or use an existing MongoDB deployment. For example,
+with Docker installed:
+
+```bash
+docker run -d --name wred-mongo -p 127.0.0.1:27017:27017 -v wred-mongo-data:/data/db mongo:8
+```
+
+Then start the app and open <http://127.0.0.1:8000>:
+
+```bash
+uv run --extra example weft example_app.app:app
+```
+
+The defaults are `MONGODB_URI=mongodb://127.0.0.1:27017` and
+`MONGODB_DATABASE=wred_notebook`. Set these environment variables to choose another
+server or database. Collections and indexes are created automatically. Accounts,
+notes, and login sessions survive app restarts as long as the MongoDB data is
+preserved. Passwords are hashed; only digests of access and refresh tokens are
+stored.
+
+Database calls use `await` with one connection pool per app worker. The example
+wraps Wred with an ASGI lifespan handler to initialize indexes on startup and close
+the client on shutdown; Wred's core stays HTTP-only. HTTP-only servers initialize
+the database on the first database request. Each login is one document, keeping
+refresh and logout atomic on a standalone MongoDB server. Expired sessions are
+removed by a TTL index; authorization also checks expiry immediately. Note search,
+filtering, sorting, and pagination run in MongoDB. Rate-limit counters remain per
+process and reset on restart; use shared rate limiting for multiple workers and
+HTTPS outside localhost.
+
+Run the full test suite against a running MongoDB server:
+
+```bash
+WRED_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 uv run --extra example python -m unittest discover -v
+```
+
+Integration tests create and remove separate databases named `wred_test_<random>`;
+the test account needs permission to create indexes and drop those databases.
+Without `WRED_TEST_MONGODB_URI`, the core tests run and the MongoDB integration
+tests are skipped.
+
 ## Routes
 
 Handlers are async and receive a request. Methods default to `['GET']`;

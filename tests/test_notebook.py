@@ -1,29 +1,48 @@
 """Exercise the example's API contracts through the actual Wred ASGI app."""
 import importlib
 import asyncio
+import os
+from pathlib import Path
+import subprocess
+import sys
 from http.cookies import SimpleCookie
 import unittest
 from urllib.parse import unquote, urlsplit
 from unittest.mock import patch
+from uuid import uuid4
 
 import orjson
 
 from tests.test_wred import call_app
-from example_app import auth, storage, rate_limit
+from example_app import auth, rate_limit
 
-notebook = importlib.import_module('example_app.app')
+mongodb_uri = os.environ.get('WRED_TEST_MONGODB_URI')
+notebook = importlib.import_module('example_app.app') if mongodb_uri else None
 
 
+@unittest.skipUnless(mongodb_uri, 'Set WRED_TEST_MONGODB_URI to run the MongoDB integration tests')
 class NotebookTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        storage.users.clear()
-        storage.tokens.clear()
-        storage.refresh_tokens.clear()
+        self.database_name = 'wred_test_' + uuid4().hex
+        self.apps = []
+        self.app = self.new_app()
+        self.addAsyncCleanup(self.clean_database)
         rate_limit.rate_buckets.clear()
-        storage.notes.clear()
+
+    def new_app(self):
+        app = notebook.create_app(mongodb_uri, self.database_name)
+        self.apps.append(app)
+        return app
+
+    async def clean_database(self):
+        try:
+            await self.app.database.client.drop_database(self.database_name)
+        finally:
+            for app in self.apps:
+                await app.database.close()
 
     async def request(self, path, method='GET', data=None, token=None, authorization=None,
-                      cookie=None, client='127.0.0.1', csrf_header=True, extra_headers=(), scheme='http'):
+                      cookie=None, client='127.0.0.1', csrf_header=True, extra_headers=(), scheme='http', app=None):
         url = urlsplit(path)
 
         async def receive():
@@ -41,7 +60,7 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
             headers.append((b'authorization', f'Bearer {token}'.encode()))
         if authorization is not None:
             headers.append((b'authorization', authorization))
-        messages = await call_app(notebook.app, {
+        messages = await call_app(self.app if app is None else app, {
             'type': 'http', 'path': unquote(url.path), 'method': method,
             'query_string': url.query.encode(), 'headers': headers,
             'scheme': scheme, 'client': (client, 12345),
@@ -90,6 +109,18 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.request('/api/health'))[:2], (200, {'status': 'ok'}))
         self.assertEqual((await self.request('/static/missing.js'))[0], 404)
 
+    async def test_lifespan_starts_and_stops_the_database(self):
+        worker = self.new_app()
+        messages = iter([{'type': 'lifespan.startup'}, {'type': 'lifespan.shutdown'}])
+
+        async def receive():
+            return next(messages)
+
+        responses = await call_app(worker, {'type': 'lifespan'}, receive)
+        self.assertEqual(responses, [
+            {'type': 'lifespan.startup.complete'}, {'type': 'lifespan.shutdown.complete'},
+        ])
+
     async def test_signup_login_and_independent_login_revocation(self):
         token = await self.account(' Alice ')
         status, profile, headers = await self.request('/api/me', token=token)
@@ -108,9 +139,87 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.request('/api/me', token=token))[0], 401)
         self.assertEqual((await self.request('/api/me', token=second_token))[:2],
                          (200, {'id': 'alice'}))
-        expired_time = auth.monotonic() + 3601
-        with patch.object(auth, 'monotonic', return_value=expired_time):
+        expired_time = auth.time() + 3601
+        with patch.object(auth, 'time', return_value=expired_time):
             self.assertEqual((await self.request('/api/me', token=second_token))[0], 401)
+
+    async def test_accounts_notes_and_sessions_survive_a_new_process(self):
+        token = await self.account()
+        note = await self.create(token, title='Remember me', pinned=True)
+        credentials = {'username': 'alice', 'password': 'a long example passphrase'}
+        _, login, headers = await self.request('/api/login', 'POST', credentials)
+        morsel = SimpleCookie(headers[b'set-cookie'].decode())[auth.refresh_cookie_name]
+        cookie = f'{auth.refresh_cookie_name}={morsel.value}'
+        script = """
+import asyncio
+import sys
+import orjson
+from example_app.app import app
+from tests.test_wred import call_app
+
+async def main():
+    data = orjson.loads(sys.stdin.buffer.read())
+    results = []
+    for path, method, headers in [
+        ('/api/notes', 'GET', [(b'authorization', ('Bearer ' + data['token']).encode())]),
+        ('/api/refresh', 'POST', [(b'cookie', data['cookie'].encode()),
+                                 (b'x-notebook-request', b'1')]),
+        ('/api/login', 'POST', [(b'x-notebook-request', b'1')]),
+    ]:
+        async def receive():
+            return {'type': 'http.request', 'body': orjson.dumps(data['credentials'])}
+        messages = await call_app(app, {'type': 'http', 'path': path, 'method': method,
+                                       'headers': headers}, receive)
+        results.append([messages[0]['status'], orjson.loads(messages[1]['body'])])
+    await app.database.close()
+    sys.stdout.buffer.write(orjson.dumps(results))
+
+asyncio.run(main())
+"""
+        result = await asyncio.to_thread(
+            subprocess.run, [sys.executable, '-c', script],
+            input=orjson.dumps({'token': login['access_token'], 'cookie': cookie,
+                                'credentials': credentials}),
+            env={**os.environ, 'MONGODB_URI': mongodb_uri,
+                 'MONGODB_DATABASE': self.database_name},
+            cwd=Path(__file__).resolve().parents[1], capture_output=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        listed, refreshed, logged_in = orjson.loads(result.stdout)
+        self.assertEqual((listed[0], listed[1]['items']), (200, [note]))
+        self.assertEqual((refreshed[0], refreshed[1]['user']), (200, {'id': 'alice'}))
+        self.assertEqual((logged_in[0], logged_in[1]['user']), (200, {'id': 'alice'}))
+        # Tokens issued in the new process must be usable and revocable in the original.
+        renewed = refreshed[1]['access_token']
+        self.assertEqual((await self.request('/api/me', token=renewed))[0], 200)
+        await self.request('/api/logout', 'POST', token=renewed)
+        restarted = self.new_app()
+        self.assertEqual((await self.request('/api/me', token=login['access_token'], app=restarted))[0], 401)
+        self.assertEqual((await self.request('/api/refresh', 'POST', cookie=cookie, app=restarted))[0], 401)
+        self.assertEqual((await self.request('/api/me', token=token, app=restarted))[0], 200)
+
+    async def test_workers_resolve_duplicate_signups_and_preserve_concurrent_patches(self):
+        worker = self.new_app()
+        credentials = {'username': 'alice', 'password': 'a long example passphrase'}
+        responses = await asyncio.gather(
+            self.request('/api/signup', 'POST', credentials),
+            self.request('/api/signup', 'POST', credentials, app=worker),
+        )
+        self.assertEqual(sorted(response[0] for response in responses), [201, 409])
+        _, login, _ = await self.request('/api/login', 'POST', credentials, app=worker)
+        token = login['access_token']
+        note = await self.create(token, title='Original', body='Original body')
+        path = f"/api/notes/{note['id']}"
+        responses = await asyncio.gather(
+            self.request(path, 'PATCH', {'title': 'New title'}, token),
+            self.request(path, 'PATCH', {'body': 'New body'}, token, app=worker),
+        )
+        self.assertEqual([response[0] for response in responses], [200, 200])
+        _, edited, _ = await self.request(path, token=token, app=worker)
+        self.assertEqual((edited['title'], edited['body']), ('New title', 'New body'))
+        for search in ('New+title', 'New+body'):
+            _, page, _ = await self.request('/api/notes?q=' + search, token=token, app=worker)
+            self.assertEqual(page['items'], [edited])
 
     async def test_invalid_credentials_and_bearer_headers(self):
         for data in [[], {}, {'username': 1, 'password': 'a long passphrase'},
@@ -171,7 +280,7 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_filtering_pagination_and_invalid_queries(self):
         token = await self.account()
-        first = await self.create(token, title='Coffee idea', body='Learn C++', pinned=True)
+        first = await self.create(token, title='Coffee idea', body='Learn C++; Straße; 100%_done; $title; [.*]', pinned=True)
         second = await self.create(token, title='Second idea', body='Coffee later')
         await self.create(token, title='A separate thought')
         _, page, _ = await self.request('/api/notes?q=COFFEE&limit=1&offset=0', token=token)
@@ -180,6 +289,11 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(page['items'], [second])
         _, page, _ = await self.request('/api/notes?q=C%2B%2B&pinned=true', token=token)
         self.assertEqual(page['items'], [first])
+        for search in ['STRASSE', '100%25_done', '$title', '%5B.*%5D']:
+            _, page, _ = await self.request('/api/notes?q=' + search, token=token)
+            self.assertEqual(page['items'], [first])
+        _, page, _ = await self.request('/api/notes?offset=9223372036854775808', token=token)
+        self.assertEqual((page['items'], page['total']), ([], 3))
         _, page, _ = await self.request('/api/notes?pinned=false', token=token)
         self.assertEqual(page['total'], 2)
         for query in ['limit=abc', 'offset=abc', 'limit=0', 'limit=51', 'offset=-1',
@@ -227,7 +341,15 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
                          (200, {'id': 'alice'}))
         # Cookies alone must never authorize notes endpoints, keeping bearer auth separate.
         self.assertEqual((await self.request('/api/notes', cookie=cookie))[0], 401)
-        _, _, headers = await self.request('/api/logout', 'POST', token=restored['access_token'])
+        refreshed, logged_out = await asyncio.gather(
+            self.request('/api/refresh', 'POST', cookie=cookie),
+            self.request('/api/logout', 'POST', token=restored['access_token']),
+        )
+        self.assertEqual(logged_out[0], 200)
+        self.assertIn(refreshed[0], (200, 401))
+        if refreshed[0] == 200:
+            self.assertEqual((await self.request('/api/me', token=refreshed[1]['access_token']))[0], 401)
+        _, _, headers = logged_out
         cleared = SimpleCookie(headers[b'set-cookie'].decode())[auth.refresh_cookie_name]
         self.assertEqual(cleared['max-age'], '0')
         self.assertEqual(cleared['path'], '/api')
@@ -262,11 +384,11 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(morsel['secure'], 'Local HTTP demo cookies should work without TLS')
         cookie = f'{auth.refresh_cookie_name}={morsel.value}'
         # Access expiry is recoverable while the independent refresh credential is valid.
-        now = auth.monotonic()
-        with patch.object(auth, 'monotonic', return_value=now + 3601):
+        now = auth.time()
+        with patch.object(auth, 'time', return_value=now + 3601):
             self.assertEqual((await self.request('/api/me', token=login['access_token']))[0], 401)
             self.assertEqual((await self.request('/api/refresh', 'POST', cookie=cookie))[0], 200)
-        with patch.object(auth, 'monotonic', return_value=now + 7 * 24 * 3600 + 1):
+        with patch.object(auth, 'time', return_value=now + 7 * 24 * 3600 + 1):
             status, _, headers = await self.request('/api/refresh', 'POST', cookie=cookie)
             self.assertEqual(status, 401)
             self.assertEqual(SimpleCookie(headers[b'set-cookie'].decode())[auth.refresh_cookie_name]['max-age'], '0')

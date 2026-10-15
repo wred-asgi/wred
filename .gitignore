@@ -23,3 +23,6 @@ coverage.xml
 .env.*
 !.env.example
 .aws/
+
+# Local example database
+.data/
