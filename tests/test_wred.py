@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from contextlib import chdir
 from pathlib import Path
 from unittest.mock import patch
 
@@ -115,13 +116,16 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             (root / 'asset.unknownextension').write_bytes(b'\x00\xff')
             (base / 'secret.txt').write_text('private')
             (root / 'escape.txt').symlink_to(base / 'secret.txt')
+            custom_root = base / 'assets'
+            custom_root.mkdir()
+            (custom_root / 'index.html').write_bytes(b'<p>Custom root</p>')
 
             app = App()
 
             @app.route('/file', methods=['POST'])
             async def file(request):
                 data = await request.json()
-                return await app.static(data['filename'], root=root)
+                return await app.static(data['filename'], **root_options)
 
             cases = [
                 ('index.html', 200, b'text/html', b'<p>Hello</p>'),
@@ -133,17 +137,24 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 ('escape.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
                 ('invalid\x00.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
             ]
-            for filename, status, content_type, body in cases:
-                with self.subTest(filename=filename):
-                    async def receive():
-                        return {'type': 'http.request', 'body': orjson.dumps({'filename': filename})}
+            cases = [
+                (options, *case)
+                for options in ({}, {'root': ''}, {'root': None}, {'root': root}, {'root': str(root)})
+                for case in cases
+            ]
+            cases.append(({'root': custom_root}, 'index.html', 200, b'text/html', b'<p>Custom root</p>'))
+            with chdir(base):
+                for root_options, filename, status, content_type, body in cases:
+                    with self.subTest(root=root_options, filename=filename):
+                        async def receive():
+                            return {'type': 'http.request', 'body': orjson.dumps({'filename': filename})}
 
-                    messages = await call_app(app, {'type': 'http', 'path': '/file', 'method': 'POST'}, receive)
-                    self.assertEqual(messages, [
-                        {'type': 'http.response.start', 'status': status,
-                         'headers': [(b'content-type', content_type)]},
-                        {'type': 'http.response.body', 'body': body},
-                    ])
+                        messages = await call_app(app, {'type': 'http', 'path': '/file', 'method': 'POST'}, receive)
+                        self.assertEqual(messages, [
+                            {'type': 'http.response.start', 'status': status,
+                             'headers': [(b'content-type', content_type)]},
+                            {'type': 'http.response.body', 'body': body},
+                        ])
 
     async def test_dictionary_and_list_responses_are_json(self):
         app = App()

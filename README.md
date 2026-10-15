@@ -192,23 +192,20 @@ streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
 ## Static files
 
 ```python
-from pathlib import Path
-
-static_root = Path(__file__).parent / 'static'
-
 @app.route('/')
 async def index(request):
-    return await app.static('index.html', root=static_root)
+    return await app.static('index.html')
 
 @app.route('/static/{filename}')
 async def asset(request, filename):
-    return await app.static(filename, root=static_root)
+    return await app.static(filename)
 ```
 
-`static(filename, root=...)` returns `(bytes, content_type, status)`.
-The root is required and accepts a string or `Path`. MIME types are guessed;
-missing, unreadable, or outside-root files return plain-text 404, including
-symlink escapes. Files are read in a worker thread, entirely into memory.
+`static(filename, root='static')` returns `(bytes, content_type, status)`.
+Omitting `root`, passing `''`, or passing `None` uses the `static` directory in the
+current working directory. Set `root` to a string or `Path` to use another directory.
+MIME types are guessed; missing, unreadable, or outside-root files return
+plain-text 404, including symlink escapes. Files are read in a worker thread, entirely into memory.
 Small files. Don't feed it a movie.
 
 ## Errors

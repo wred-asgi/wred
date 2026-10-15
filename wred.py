@@ -161,11 +161,11 @@ class App:
                 return None
         return params
 
-    async def static(self, filename: str | Path, *, root: str | Path) -> tuple[bytes, str, int]:
-        """Serve a small file inside root; read its entire body off the event loop."""
+    async def static(self, filename: str | Path, *, root: str | Path | None = 'static') -> tuple[bytes, str, int]:
+        """Serve a small file inside root (default: ./static), off the event loop."""
         def read() -> tuple[bytes, str, int]:
             try:
-                directory = Path(root).resolve()
+                directory = Path(root or 'static').resolve()
                 path = (directory / filename).resolve()
                 if not path.is_relative_to(directory) or not path.is_file():
                     return b'Not Found', 'text/plain; charset=utf-8', 404
