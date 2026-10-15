@@ -6,10 +6,10 @@ build-backend = "flit_core.buildapi"
 name = "wred"
 dynamic = ["version"]
 description = "An ultra-minimal ASGI framework for JSON APIs."
-readme = "README.md"
+readme = "docs/README.md"
 requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [{ name = "Harrison Erd", email = "harrisonerd@gmail.com" }]
-dependencies = ["orjson", "peregrine-server"]
+dependencies = ["orjson", "weft-server"]
 

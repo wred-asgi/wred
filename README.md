@@ -10,7 +10,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses, custom response tuples, and a small-file helper.
 - Callable ASGI response support and routing relative to mounted paths.
-- Depends on `peregrine-server` and `orjson`. You can use any ASGI server.
+- Depends on `weft-server` and `orjson`. You can use any ASGI server.
 
 ## What you don't get
 
@@ -43,10 +43,10 @@ async def hello(request):
     return {'hello': 'world'}
 ```
 
-Run it with Peregrine, or any other ASGI server you like:
+Run it with Weft, or any other ASGI server you like:
 
 ```bash
-peregrine app:app
+weft app:app
 ```
 
 Open <http://127.0.0.1:8000>. Wred is HTTP-only.
@@ -166,18 +166,13 @@ JSON 400 responses: `{'error': message}`. Raise `WredRequestError` from a handle
 for application validation failures. Unsupported response types produce JSON
 500 errors; other exceptions propagate.
 
-## Benchmarks
+## Performance
 
-`GET /` returning `{"hello": "world"}`. Three runs per framework, rotating their order each round.
+Since there isn't much to Wred, it's really fast. What it lacks in features it gains in speed.
 
-| Framework | Median requests/sec | Min | Max |
-| --- | ---: | ---: | ---: |
-| Wred 0.04 | **553,296** | 544,314 | 585,634 |
-| BlackSheep 2.6.4 | 398,900 | 384,661 | 415,871 |
-| MicroPie 0.32 | 374,680 | 367,513 | 391,136 |
-
-Python 3.14.4, Peregrine 1.1.7, eight workers, HTTP/1 keep-alive, asyncio,
-no access logging. `wrk -t4 -c256 -d20s --latency`, five-second warmups.
-Client and server shared a machine over loopback. All nine measured runs
-had zero socket errors or non-success responses. It's a tiny JSON response,
-not your whole application. Benchmark your own shit.
+Wred running on Weft with 8 workers achieved up to 579,708 requests/second, averaging
+approximately 479,414 requests/second across five benchmark runs. Testing was performed
+locally using wrk with 4 threads, 256 concurrent connections, and 20-second runs, with
+an average p99 latency of just 3.69 ms. Testing was done on a Dell XPS 13 9350 with
+an Intel Core Ultra 7 256V (8 cores, up to 4.8 GHz), running Ubuntu 26.04.1 LTS
+(Linux 6.17.0-1023-oem, x86-64).

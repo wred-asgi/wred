@@ -1,7 +1,7 @@
 """Run the notebook demo from the repository root:
 
     uv sync
-    uv run peregrine example_app.app:app
+    uv run weft example_app.app:app
 
 Open http://127.0.0.1:8000. Users, tokens, and notes disappear on restart.
 Login is restored with an HttpOnly refresh cookie; API calls use bearer tokens.
