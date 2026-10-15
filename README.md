@@ -176,3 +176,8 @@ locally using wrk with 4 threads, 256 concurrent connections, and 20-second runs
 an average p99 latency of just 3.69 ms. Testing was done on a Dell XPS 13 9350 with
 an Intel Core Ultra 7 256V (8 cores, up to 4.8 GHz), running Ubuntu 26.04.1 LTS
 (Linux 6.17.0-1023-oem, x86-64).
+
+With respect to the lack of features mentioned above, Wred is meant to be bare bones, it's really
+an experiment of how minimal and fast an ASGI framework can be without being raw ASGI. For an
+actual micro framework with lifespan, streaming, multipart and more check out [MicroPie](https://harrisonerd.com/micropie).
+
