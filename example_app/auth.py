@@ -7,7 +7,8 @@ from http.cookies import CookieError, SimpleCookie
 from secrets import compare_digest, token_bytes, token_urlsafe
 from time import time
 
-from wred import WredRequestError
+import orjson
+
 from .rate_limit import rate_limit
 
 token_lifetime = 3600
@@ -61,15 +62,18 @@ def token_response(token, username):
 
 
 async def read_credentials(request):
-    data = await request.json()
+    try:
+        data = await request.json()
+    except orjson.JSONDecodeError:
+        raise ValueError('Invalid JSON body') from None
     if not isinstance(data, dict):
-        raise WredRequestError('Send a JSON object with username and password')
+        raise ValueError('Send a JSON object with username and password')
     username, password = data.get('username'), data.get('password')
     if not isinstance(username, str) or not isinstance(password, str):
-        raise WredRequestError('Username and password must be strings')
+        raise ValueError('Username and password must be strings')
     username = username.strip().casefold()
     if not 1 <= len(username) <= 64 or not 15 <= len(password) <= 128:
-        raise WredRequestError('Use a username of 1–64 and a password of 15–128 characters')
+        raise ValueError('Use a username of 1–64 and a password of 15–128 characters')
     return username, password
 
 
@@ -115,7 +119,10 @@ def register_routes(app, database):
     @app.route('/api/signup', methods=['POST'])
     @rate_limit(requests=10, seconds=60)
     async def signup(request):
-        username, password = await read_credentials(request)
+        try:
+            username, password = await read_credentials(request)
+        except ValueError as error:
+            return {'error': str(error)}, 'application/json', 400
         salt = token_bytes(16)
         password_hash = await hash_password(password, salt)
         # MongoDB's unique _id also handles signups in different workers.
@@ -132,7 +139,10 @@ def register_routes(app, database):
                 'application/json',
                 403,
             )
-        username, password = await read_credentials(request)
+        try:
+            username, password = await read_credentials(request)
+        except ValueError as error:
+            return {'error': str(error)}, 'application/json', 400
         # Use a dummy record for unknown users so failed logins still perform password hashing.
         record = await database.get_user(username)
         salt = record['salt'] if record else bytes(16)

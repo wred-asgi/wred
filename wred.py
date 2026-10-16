@@ -10,7 +10,7 @@ Copyright (c) 2026, Harrison Erd.
 
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
-__version__ = '0.06'
+__version__ = '0.07'
 __license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable
@@ -20,15 +20,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl
 import orjson
-
-
-class WredResponseError(Exception):
-    """Raised when a handler returns a non-JSON response."""
-    pass
-
-class WredRequestError(Exception):
-    """Raised when a request cannot be processed (e.g., invalid body)."""
-    pass
 
 
 class Request:
@@ -46,10 +37,7 @@ class Request:
     def query(self) -> dict[str, str]:
         """Parse and cache query parameters; repeated keys keep their last value."""
         if self._query is None:
-            try:
-                self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode('utf-8'), keep_blank_values=True))
-            except UnicodeDecodeError:
-                raise WredRequestError("Invalid query string")
+            self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode('utf-8'), keep_blank_values=True))
         return self._query
 
     async def body(self) -> bytes:
@@ -59,7 +47,7 @@ class Request:
             while True:
                 message = await self.receive()
                 if message['type'] != 'http.request':
-                    raise WredRequestError("Client disconnected")
+                    raise ConnectionError("Client disconnected")
                 chunks.append(message.get('body', b''))
                 if not message.get('more_body', False):
                     break
@@ -68,11 +56,8 @@ class Request:
 
     async def json(self) -> dict[str, Any]:
         """Parse the request body as JSON."""
-        try:
-            body = await self.body()
-            return orjson.loads(body) if body else {}
-        except orjson.JSONDecodeError:
-            raise WredRequestError("Invalid JSON body")
+        body = await self.body()
+        return orjson.loads(body) if body else {}
 
 
 class App:
@@ -96,29 +81,21 @@ class App:
         if root_path and (path == root_path or path.startswith(root_path + '/')):
             path = path[len(root_path):] or '/'
         method = request.method
-        try:
-            # Check exact matches first
-            if path in self.routes and method in self.routes[path]:
-                handler = self.routes[path][method]
-                response = await handler(request)
+        if path in self.routes and method in self.routes[path]:
+            handler = self.routes[path][method]
+            response = await handler(request)
+            await self.dispatch_response(request, response)
+            return
+
+        for pattern, method_handlers in self.pattern_routes.items():
+            params = self.match_path(pattern, path)
+            if params is not None and method in method_handlers:
+                handler = method_handlers[method]
+                response = await handler(request, **params)
                 await self.dispatch_response(request, response)
                 return
 
-            # Check dynamic routes
-            for pattern, method_handlers in self.pattern_routes.items():
-                params = self.match_path(pattern, path)
-                if params is not None and method in method_handlers:
-                    handler = method_handlers[method]
-                    response = await handler(request, **params)
-                    await self.dispatch_response(request, response)
-                    return
-
-            # No match found
-            await self.send_response(request.send, {"error": "Not Found"}, status=404)
-
-        except (WredResponseError, WredRequestError) as e:
-            status = 400 if isinstance(e, WredRequestError) else 500
-            await self.send_response(request.send, {"error": str(e)}, status=status)
+        await self.send_response(request.send, {"error": "Not Found"}, status=404)
 
     async def dispatch_response(self, request: Request, response: Any) -> None:
         """Invoke an ASGI response or serialize an ordinary handler result."""
@@ -138,7 +115,7 @@ class App:
         if isinstance(body, (dict, list)):
             body, content_type = orjson.dumps(body), 'application/json'
         elif not isinstance(body, bytes):
-            raise WredResponseError("Response must be a dictionary, list, bytes, or response tuple")
+            raise TypeError("Response must be a dictionary, list, bytes, or response tuple")
         await send({
             'type': 'http.response.start',
             'status': status,

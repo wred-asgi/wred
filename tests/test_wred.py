@@ -180,28 +180,23 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     {'type': 'http.response.body', 'body': body},
                 ])
 
-    async def test_custom_status_and_json_errors(self):
-        # Covers the error paths that previously sent ASGI messages separately,
-        # plus a response tuple returned through dynamic routing.
+    async def test_custom_status_and_explicit_json_errors(self):
         app = App()
 
         @app.route('/{name}/created')
         async def created(request, name):
             return {'name': name}, 'application/json', 201
 
-        @app.route('/invalid')
-        async def invalid(request):
-            return 'not a supported response'
-
         @app.route('/input', methods=['POST'])
         async def input_data(request):
-            return await request.json()
+            try:
+                return await request.json()
+            except orjson.JSONDecodeError:
+                return {'error': 'Invalid JSON body'}, 'application/json', 400
 
         cases = [
             ('GET', '/alice/created', b'', 201, b'{"name":"alice"}'),
             ('GET', '/missing', b'', 404, b'{"error":"Not Found"}'),
-            ('GET', '/invalid', b'', 500,
-             b'{"error":"Response must be a dictionary, list, bytes, or response tuple"}'),
             ('POST', '/input', b'{', 400, b'{"error":"Invalid JSON body"}'),
             ('POST', '/input', b'', 200, b'{}'),
             ('GET', '/alice/missing', b'', 404, b'{"error":"Not Found"}'),
@@ -218,6 +213,71 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                      'headers': [(b'content-type', b'application/json')]},
                     {'type': 'http.response.body', 'body': body},
                 ])
+
+    async def test_parsing_and_response_errors_propagate_without_sending(self):
+        app = App()
+
+        @app.route('/input', methods=['POST'])
+        async def input_data(request):
+            return await request.json()
+
+        @app.route('/search')
+        async def search(request):
+            return request.query()
+
+        @app.route('/invalid')
+        async def invalid(request):
+            return response
+
+        cases = [
+            ('POST', '/input', b'{', b'', None, orjson.JSONDecodeError),
+            ('GET', '/search', b'', b'\xff', None, UnicodeDecodeError),
+            ('GET', '/invalid', b'', b'', 'unsupported response', TypeError),
+            ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), TypeError),
+        ]
+        for method, path, body, query_string, response, error in cases:
+            with self.subTest(path=path, response=response):
+                messages = []
+
+                async def receive():
+                    return {'type': 'http.request', 'body': body}
+
+                async def send(message):
+                    messages.append(message)
+
+                with self.assertRaises(error):
+                    await app({'type': 'http', 'path': path, 'method': method,
+                               'query_string': query_string}, receive, send)
+                self.assertEqual(messages, [])
+
+    async def test_callable_response_errors_do_not_replace_a_started_stream(self):
+        app = App()
+
+        @app.route('/stream', methods=['POST'])
+        async def stream(request):
+            async def response(scope, receive, send):
+                await send({'type': 'http.response.start', 'status': 200,
+                            'headers': [(b'content-type', b'text/plain')]})
+                await send({'type': 'http.response.body', 'body': b'hello\n', 'more_body': True})
+                await request.json()
+
+            return response
+
+        async def receive():
+            return {'type': 'http.request', 'body': b'{'}
+
+        messages = []
+
+        async def send(message):
+            messages.append(message)
+
+        with self.assertRaises(orjson.JSONDecodeError):
+            await app({'type': 'http', 'path': '/stream', 'method': 'POST'}, receive, send)
+        self.assertEqual(messages, [
+            {'type': 'http.response.start', 'status': 200,
+             'headers': [(b'content-type', b'text/plain')]},
+            {'type': 'http.response.body', 'body': b'hello\n', 'more_body': True},
+        ])
 
     async def test_route_priority_and_method_registration(self):
         app = App()
@@ -264,7 +324,6 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
              {'params': {'q': 'C++', 'label': 'café', 'x&y': 'a=b'}, 'q': 'C++'}),
             (b'q=&bare&tag=first&tag=last', 200,
              {'params': {'q': '', 'bare': '', 'tag': 'last'}, 'q': ''}),
-            (b'\xff', 400, {'error': 'Invalid query string'}),
         ]
         for query_string, status, body in cases:
             with self.subTest(query_string=query_string):
@@ -326,12 +385,15 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 raise AssertionError('Body reading continued after disconnect')
             return {'type': 'http.disconnect'}
 
-        messages = await call_app(app, {'type': 'http', 'path': '/input', 'method': 'POST'}, receive)
-        self.assertEqual(messages, [
-            {'type': 'http.response.start', 'status': 400,
-             'headers': [(b'content-type', b'application/json')]},
-            {'type': 'http.response.body', 'body': b'{"error":"Client disconnected"}'},
-        ])
+        messages = []
+
+        async def send(message):
+            messages.append(message)
+
+        with self.assertRaisesRegex(ConnectionError, 'Client disconnected'):
+            await app({'type': 'http', 'path': '/input', 'method': 'POST'}, receive, send)
+        self.assertEqual(messages, [])
+        self.assertEqual(reads, 1)
 
     async def test_unsupported_protocols_raise_without_receiving_or_sending(self):
         app = App()
@@ -383,8 +445,6 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ((b'<p>Hello</p>', 'text/html; charset=utf-8', 202),
              202, b'text/html; charset=utf-8', b'<p>Hello</p>', []),
             (([], 'application/json', 201), 201, b'application/json', b'[]', []),
-            ((b'bad', 'text/plain'), 500, b'application/json',
-             b'{"error":"Response must be a dictionary, list, bytes, or response tuple"}', []),
             (({'error': 'Unauthorized'}, 'application/json', 401,
               [('WWW-Authenticate', 'Bearer'), ('Cache-Control', 'no-store')]),
              401, b'application/json', b'{"error":"Unauthorized"}',

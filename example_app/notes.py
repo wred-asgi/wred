@@ -3,24 +3,28 @@
 from datetime import UTC, datetime
 from secrets import token_urlsafe
 
-from wred import WredRequestError
+import orjson
+
 from .auth import protected
 
 
 async def read_note(request, partial=False):
-    data = await request.json()
+    try:
+        data = await request.json()
+    except orjson.JSONDecodeError:
+        raise ValueError('Invalid JSON body') from None
     if not isinstance(data, dict) or not data or data.keys() - {'title', 'body', 'pinned'}:
-        raise WredRequestError('Send an object containing title, body, or pinned')
+        raise ValueError('Send an object containing title, body, or pinned')
     if not partial and 'title' not in data:
-        raise WredRequestError('A title is required')
+        raise ValueError('A title is required')
     if 'title' in data and (
         not isinstance(data['title'], str) or not 1 <= len(data['title'].strip()) <= 100
     ):
-        raise WredRequestError('Title must contain 1–100 characters')
+        raise ValueError('Title must contain 1–100 characters')
     if 'body' in data and (not isinstance(data['body'], str) or len(data['body']) > 10_000):
-        raise WredRequestError('Body must be a string of at most 10,000 characters')
+        raise ValueError('Body must be a string of at most 10,000 characters')
     if 'pinned' in data and not isinstance(data['pinned'], bool):
-        raise WredRequestError('Pinned must be a boolean')
+        raise ValueError('Pinned must be a boolean')
     if 'title' in data:
         data['title'] = data['title'].strip()
     return data if partial else {'body': '', 'pinned': False, **data}
@@ -43,25 +47,31 @@ def register_routes(app, database):
     async def list_notes(request):
         # Keep this demo's query budget at 20 fields, including repeated keys.
         if request.scope.get('query_string', b'').count(b'&') >= 20:
-            raise WredRequestError('Invalid query string')
-        query = request.query()
+            return {'error': 'Invalid query string'}, 'application/json', 400
+        try:
+            query = request.query()
+        except UnicodeDecodeError:
+            return {'error': 'Invalid query string'}, 'application/json', 400
         try:
             limit = int(query.get('limit') or '5')
             offset = int(query.get('offset') or '0')
         except ValueError:
-            raise WredRequestError('Limit and offset must be integers')
+            return {'error': 'Limit and offset must be integers'}, 'application/json', 400
         if not 1 <= limit <= 50 or offset < 0:
-            raise WredRequestError('Limit must be 1–50; offset must be zero or greater')
+            return {'error': 'Limit must be 1–50; offset must be zero or greater'}, 'application/json', 400
         search = query.get('q', '').strip().casefold()
         pinned = query.get('pinned', '')
         if pinned not in ('', 'true', 'false'):
-            raise WredRequestError('Pinned filter must be true or false')
+            return {'error': 'Pinned filter must be true or false'}, 'application/json', 400
         return await database.list_notes(request.user['id'], search, pinned, limit, offset)
 
     @app.route('/api/notes', methods=['POST'])
     @protected(database)
     async def create_note(request):
-        data = await read_note(request)
+        try:
+            data = await read_note(request)
+        except ValueError as error:
+            return {'error': str(error)}, 'application/json', 400
         note_id = token_urlsafe(9)
         now = datetime.now(UTC).isoformat(timespec='microseconds')
         note = {
@@ -85,7 +95,10 @@ def register_routes(app, database):
         note = await owned_note(database, note_id, request.user)
         if isinstance(note, tuple):
             return note
-        data = await read_note(request, partial=request.method == 'PATCH')
+        try:
+            data = await read_note(request, partial=request.method == 'PATCH')
+        except ValueError as error:
+            return {'error': str(error)}, 'application/json', 400
         data['updated_at'] = datetime.now(UTC).isoformat(timespec='microseconds')
         updated = await database.update_note(note_id, request.user['id'], data)
         if updated is None:

@@ -91,15 +91,13 @@ with pretty much every ASGI application you can think of.
 
 ## Requests
 
-| API | Returns |
-| --- | --- |
-| `request.path` | Path without the query string. |
-| `request.method` | HTTP method. |
-| `request.headers` | Decoded header dict; use lowercase keys. |
-| `request.scope` | Original ASGI scope, including client, scheme, and middleware state. |
-| `request.query()` | Cached dict of string keys and values. No `await`. |
-| `await request.body()` | Cached raw bytes. |
-| `await request.json()` | Parsed JSON; an empty body becomes `{}`. |
+* `request.path` -> Path without the query string
+* `request.method` -> HTTP method
+* `request.headers` -> Decoded header dict; use lowercase keys
+* `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
+* `request.query()` -> Cached dict of string keys and values. No `await`!
+* `await request.body()` -> Cached body raw bytes
+* `await request.json()` -> Parsed JSON body; an empty body becomes `{}`
 
 ```python
 @app.route('/search')
@@ -116,26 +114,21 @@ signed, not encrypted. Wred doesn't supply a session property.
 
 ## Responses
 
-Dicts and lists become JSON with HTTP 200. Bytes default to
-`application/octet-stream`. Custom responses use
-`(body, content_type, status[, headers])`:
+Dicts and lists become `application/json` with HTTP 200. Bytes default to
+`application/octet-stream`. Custom responses use `(body, content_type, status[, headers])`.
+Headers are string pairs; repeated `Set-Cookie` headers are supported.
 
-| Handler return | Response |
-| --- | --- |
-| `{'hello': 'world'}` | JSON object, 200. |
-| `[{'id': 1}, {'id': 2}]` | JSON array, 200. |
-| `b'hello', 'text/plain', 200` | Text response. |
-| `{'id': 3}, 'application/json', 201, [('Location', '/items/3')]` | Created resource with a custom header. |
-| `b'', 'text/plain', 303, [('Location', '/')]` | Redirect. |
-| `b'', 'application/json', 204` | No content. |
+* `{'hello': 'world'}` -> JSON object, 200
+* `[{'id': 1}, {'id': 2}]` -> JSON array, 200
+* `b'hello', 'text/plain', 200` -> Text response
+* `{'id': 3}, 'application/json', 201, [('Location', '/items/3')]` -> Created resource with a custom header
+* `b'', 'text/plain', 303, [('Location', '/')]` -> Redirect
+* `b'', 'application/json', 204` -> No content
 
-Dicts and lists always use `application/json`, including inside tuples.
-Other tuple bodies must be bytes. Headers are string pairs; repeated
-`Set-Cookie` headers are supported.
-
-Return a callable ASGI response object to let it manage status, headers, and
+You can also return a callable ASGI response object to let it manage status, headers, and
 body through `(scope, receive, send)`. Reuse external response classes for
 streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
+For example Starlette's StreamingResponse can be returned directly in a Wred handler.
 
 ## Static files
 
@@ -158,10 +151,31 @@ Small files. Don't feed it a movie.
 
 ## Errors
 
-Malformed JSON, invalid UTF-8 query strings, and `WredRequestError` produce
-JSON 400 responses: `{'error': message}`. Raise `WredRequestError` from a handler
-for application validation failures. Unsupported response types produce JSON
-500 errors; other exceptions propagate.
+Exceptions propagate to your ASGI server or middleware. Malformed JSON raises
+`orjson.JSONDecodeError`, invalid UTF-8 query strings raise `UnicodeDecodeError`,
+client disconnects during body reads raise `ConnectionError`, and unsupported
+response types raise `TypeError`. Wred does not turn exceptions into responses.
+
+Return response tuples for expected application errors. Catch parsing errors
+in your handler when you want a JSON 400 response:
+
+```python
+import orjson
+
+@app.route('/items', methods=['POST'])
+async def create_item(request):
+    try:
+        data = await request.json()
+    except orjson.JSONDecodeError:
+        return {'error': 'Invalid JSON body'}, 'application/json', 400
+    if not isinstance(data, dict) or not data.get('title'):
+        return {'error': 'A title is required'}, 'application/json', 400
+    return data, 'application/json', 201
+```
+
+Validate inputs before returning a streaming response. Once streaming starts,
+errors cannot replace its status or body; an unhandled exception propagates to
+the server without Wred attempting a second response.
 
 ## Performance
 
