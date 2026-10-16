@@ -93,7 +93,7 @@ with pretty much every ASGI application you can think of.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Decoded header dict; use lowercase keys
+* `request.headers` -> Decoded header dict; preserves header name casing supplied by the server
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query()` -> Cached dict of string keys and values. No `await`!
 * `await request.body()` -> Cached body raw bytes
@@ -106,6 +106,7 @@ async def search(request):
 ```
 
 Query parameters preserve blank values; repeated keys keep the last value.
+Invalid percent-encoded UTF-8 is replaced with `�`.
 JSON can be an object, array, or scalar. Validate inputs and convert types yourself.
 
 Authentication middleware can populate the scope for handlers to check.
@@ -116,6 +117,7 @@ signed, not encrypted. Wred doesn't supply a session property.
 
 Dicts and lists become `application/json` with HTTP 200. Bytes default to
 `application/octet-stream`. Custom responses use `(body, content_type, status[, headers])`.
+Tuple bodies must be bytes, dicts, or lists; dicts and lists always use `application/json`.
 Headers are string pairs; repeated `Set-Cookie` headers are supported.
 
 * `{'hello': 'world'}` -> JSON object, 200
@@ -152,7 +154,7 @@ Small files. Don't feed it a movie.
 ## Errors
 
 Exceptions propagate to your ASGI server or middleware. Malformed JSON raises
-`orjson.JSONDecodeError`, invalid UTF-8 query strings raise `UnicodeDecodeError`,
+`orjson.JSONDecodeError`, invalid raw UTF-8 query bytes raise `UnicodeDecodeError`,
 client disconnects during body reads raise `ConnectionError`, and unsupported
 response types raise `TypeError`. Wred does not turn exceptions into responses.
 
