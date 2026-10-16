@@ -54,7 +54,7 @@ class Request:
             self._body = b''.join(chunks)
         return self._body
 
-    async def json(self) -> dict[str, Any]:
+    async def json(self) -> Any:
         """Parse the request body as JSON."""
         body = await self.body()
         return orjson.loads(body) if body else {}
@@ -154,7 +154,7 @@ class App:
 
         return await to_thread(read)
 
-    def route(self, path: str, methods: list[str] = ['GET']) -> Callable:
+    def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:
         """Decorator to register routes with specific HTTP methods."""
         def decorator(handler: Callable) -> Callable:
             routes = self.pattern_routes if '{' in path and '}' in path else self.routes
