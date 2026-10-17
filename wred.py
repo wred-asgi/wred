@@ -80,6 +80,7 @@ class App:
         root_path = request.scope.get('root_path', '').rstrip('/')
         if root_path and (path == root_path or path.startswith(root_path + '/')):
             path = path[len(root_path):] or '/'
+        path = path.rstrip('/') or '/'
         method = request.method
         if path in self.routes and method in self.routes[path]:
             handler = self.routes[path][method]
@@ -124,9 +125,9 @@ class App:
         await send({'type': 'http.response.body', 'body': body})
 
     def match_path(self, pattern: str, path: str) -> dict[str, str] | None:
-        """Match a path against a pattern and extract parameters."""
-        pattern_parts = pattern.strip('/').split('/')
-        path_parts = path.strip('/').split('/')
+        """Match normalized paths and extract parameters."""
+        pattern_parts = pattern.split('/')
+        path_parts = path.split('/')
         if len(pattern_parts) != len(path_parts):
             return None
 
@@ -156,6 +157,7 @@ class App:
 
     def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:
         """Decorator to register routes with specific HTTP methods."""
+        path = path.rstrip('/') or '/'
         def decorator(handler: Callable) -> Callable:
             routes = self.pattern_routes if '{' in path and '}' in path else self.routes
             routes.setdefault(path, {}).update({m.upper(): handler for m in methods})

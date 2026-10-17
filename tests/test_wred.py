@@ -83,6 +83,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('/api/items/alice', '/api', 'alice'),
             ('/api/items/alice', '/api/', 'alice'),
             ('/api/items/special', '/api', 'fixed'),
+            ('/api/items/special/', '/api', 'fixed'),
             ('/proxy/api/items/alice', '/proxy/api', 'alice'),
             ('/api', '/api', 'fixed'),
             ('/api/', '/api', 'fixed'),
@@ -290,14 +291,20 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         async def update_person(request, name):
             return {'updated': name}
 
+        @app.route('/people/alice/', methods=['PUT'])
         @app.route('/people/alice')
         async def alice(request):
             return {'fixed': True}
 
         cases = [
             ('GET', '/people/alice', b'{"fixed":true}'),
+            ('GET', '/people/alice/', b'{"fixed":true}'),
             ('GET', '/people/bob', b'{"name":"bob"}'),
+            ('GET', '/people/bob/', b'{"name":"bob"}'),
             ('POST', '/people/alice', b'{"updated":"alice"}'),
+            ('POST', '/people/alice/', b'{"updated":"alice"}'),
+            ('PUT', '/people/alice', b'{"fixed":true}'),
+            ('PUT', '/people/alice/', b'{"fixed":true}'),
         ]
         for method, path, body in cases:
             with self.subTest(method=method, path=path):

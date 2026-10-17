@@ -76,6 +76,8 @@ async def update_user(request, user_id):
 Different methods can have separate handlers on the same path. Fixed routes
 win over dynamic routes for that method; dynamic routes follow registration
 order. Registering the same path and method again replaces its handler.
+Trailing slashes are ignored when registering and matching routes: `/users`
+and `/users/` use the same handler, without a redirect.
 Unmatched paths or methods return JSON 404. No automatic HEAD, OPTIONS, or 405.
 
 If you mount your Wred application at `/api`, a `/users` route in that app
