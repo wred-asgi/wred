@@ -359,7 +359,8 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             parsed = await request.json()
             cached = await request.body()
             return {'raw': first.decode(), 'cached': cached.decode(),
-                    'parsed': parsed, 'header': request.headers['x-example']}
+                    'parsed': parsed, 'header': request.headers['x-example'],
+                    'cookie': request.headers['cookie']}
 
         async def receive():
             nonlocal reads
@@ -367,14 +368,16 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             return next(chunks)
 
         messages = await call_app(app, {
-            'type': 'http', 'path': '/stream', 'method': 'POST',
-            'headers': [(b'x-example', b'hello')],
+            'type': 'http', 'http_version': '1.1', 'path': '/stream', 'method': 'POST',
+            'headers': [(b'X-Example', b'caf\xe9'),
+                        (b'Cookie', b'notebook_refresh=valid-token; theme=dark; lang=en')],
         }, receive)
         self.assertEqual(reads, 3)
         self.assertEqual(messages[0]['status'], 200)
         self.assertEqual(orjson.loads(messages[1]['body']), {
             'raw': '{"name":"Alice"}', 'cached': '{"name":"Alice"}',
-            'parsed': {'name': 'Alice'}, 'header': 'hello',
+            'parsed': {'name': 'Alice'}, 'header': 'café',
+            'cookie': 'notebook_refresh=valid-token; theme=dark; lang=en',
         })
 
     async def test_disconnect_stops_body_reading(self):

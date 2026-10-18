@@ -95,7 +95,7 @@ with pretty much every ASGI application you can think of.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Decoded header dict; preserves header name casing supplied by the server
+* `request.headers` -> Header dict with lowercase names and Latin-1 values; repeated names keep their last value
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query()` -> Cached dict of string keys and values. No `await`!
 * `await request.body()` -> Cached body raw bytes

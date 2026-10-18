@@ -10,7 +10,7 @@ Copyright (c) 2026, Harrison Erd.
 
 __author__ = 'Harrison Erd'
 __email__ = 'harrisonerd@gmail.com'
-__version__ = '0.07'
+__version__ = '0.08'
 __license__ = 'BSD-3-Clause'
 
 from collections.abc import Awaitable, Callable
@@ -25,14 +25,10 @@ import orjson
 class Request:
     """A request object encapsulating ASGI scope, receive, and send."""
     def __init__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]):
-        self.scope = scope
-        self.receive = receive
-        self.send = send
-        self.path = scope['path']
-        self.method = scope['method']
-        self.headers = {k.decode(): v.decode() for k, v in scope.get('headers', [])}
-        self._body = None
-        self._query = None
+        self.scope, self.receive, self.send = scope, receive, send
+        self.path, self.method = scope['path'], scope['method']
+        self.headers = {k.decode().lower(): v.decode('latin-1') for k, v in scope.get('headers', [])}
+        self._body = self._query = None
 
     def query(self) -> dict[str, str]:
         """Parse and cache query parameters; repeated keys keep their last value."""
@@ -70,7 +66,6 @@ class App:
         """Handle ASGI requests."""
         if scope['type'] != 'http':
             raise RuntimeError(f"Unsupported ASGI scope type: {scope['type']}")
-
         request = Request(scope, receive, send)
         await self.handle_http(request)
 
@@ -83,19 +78,13 @@ class App:
         path = path.rstrip('/') or '/'
         method = request.method
         if path in self.routes and method in self.routes[path]:
-            handler = self.routes[path][method]
-            response = await handler(request)
-            await self.dispatch_response(request, response)
+            await self.dispatch_response(request, await self.routes[path][method](request))
             return
-
         for pattern, method_handlers in self.pattern_routes.items():
             params = self.match_path(pattern, path)
             if params is not None and method in method_handlers:
-                handler = method_handlers[method]
-                response = await handler(request, **params)
-                await self.dispatch_response(request, response)
+                await self.dispatch_response(request, await method_handlers[method](request, **params))
                 return
-
         await self.send_response(request.send, {"error": "Not Found"}, status=404)
 
     async def dispatch_response(self, request: Request, response: Any) -> None:
@@ -117,11 +106,7 @@ class App:
             body, content_type = orjson.dumps(body), 'application/json'
         elif not isinstance(body, bytes):
             raise TypeError("Response must be a dictionary, list, bytes, or response tuple")
-        await send({
-            'type': 'http.response.start',
-            'status': status,
-            'headers': [(b'content-type', content_type.encode('ascii'))] + headers,
-        })
+        await send({'type': 'http.response.start', 'status': status, 'headers': [(b'content-type', content_type.encode('latin-1'))] + headers})
         await send({'type': 'http.response.body', 'body': body})
 
     def match_path(self, pattern: str, path: str) -> dict[str, str] | None:
@@ -130,7 +115,6 @@ class App:
         path_parts = path.split('/')
         if len(pattern_parts) != len(path_parts):
             return None
-
         params = {}
         for pattern_part, path_part in zip(pattern_parts, path_parts):
             if pattern_part.startswith('{') and pattern_part.endswith('}'):
@@ -152,7 +136,6 @@ class App:
             except (OSError, ValueError, RuntimeError):
                 return b'Not Found', 'text/plain; charset=utf-8', 404
             return body, guess_type(path.name)[0] or 'application/octet-stream', 200
-
         return await to_thread(read)
 
     def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:
