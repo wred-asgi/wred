@@ -7,10 +7,7 @@ Copyright (c) 2026, Harrison Erd.
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
 __version__ = '0.08'
 from collections.abc import Awaitable, Callable
-from asyncio import to_thread
 from functools import cached_property
-from mimetypes import guess_type
-from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl
 import orjson
@@ -114,15 +111,6 @@ class App:
             elif p != part:
                 return None
         return params
-
-    async def static(self, filename: str | Path, *, root: str | Path | None = 'static') -> tuple[bytes, str, int]:
-        """Read a small file inside root off the event loop; errors propagate."""
-        def read() -> tuple[bytes, str, int]:
-            directory = Path(root or 'static').resolve()
-            path = (directory / filename).resolve()
-            path.relative_to(directory)
-            return path.read_bytes(), guess_type(path.name)[0] or 'application/octet-stream', 200
-        return await to_thread(read)
 
     def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:
         """Decorator to register routes with specific HTTP methods."""

@@ -5,11 +5,12 @@
 
     Run the notebook demo with MongoDB listening on localhost:27017::
 
-        python -m pip install -e . pymongo
+        python -m pip install -e . pymongo servestatic
         weft example_app.asgi:app
 
     Open http://127.0.0.1:8000. MongoDB preserves accounts, sessions,
-    and notes.
+    and notes. ServeStatic serves the frontend in the same ASGI process,
+    with file refresh and caching settings configured for local development.
     Set MONGODB_URI and MONGODB_DATABASE to choose another server/database.
     Rate limits are isolated per app and process-local. Use HTTPS outside
     localhost.

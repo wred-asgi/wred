@@ -12,12 +12,17 @@
 """
 
 import os
+from pathlib import Path
+
+from servestatic import ServeStaticASGI
 
 from wred import App
 
 from . import auth, notes, pages
 from .rate_limit import RateLimiter
 from .storage import Database
+
+STATIC_ROOT = Path(__file__).resolve().parent / 'static'
 
 
 class NotebookApp:
@@ -30,6 +35,14 @@ class NotebookApp:
         pages.register_routes(self.http, rate_limit)
         auth.register_routes(self.http, self.database, rate_limit)
         notes.register_routes(self.http, self.database)
+        self.http = ServeStaticASGI(
+            self.http,
+            root=str(STATIC_ROOT),
+            index_file=True,
+            autorefresh=True,
+            max_age=0,
+        )
+        self.http.add_files(str(STATIC_ROOT), prefix='static/')
 
     async def __call__(self, scope, receive, send):
         if scope['type'] != 'lifespan':

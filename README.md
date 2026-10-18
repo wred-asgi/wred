@@ -8,7 +8,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 
 - Async handlers, explicit HTTP methods, and fixed or parameterized routes.
 - Headers, query parameters, cached body reads, and JSON parsing.
-- JSON responses, custom response tuples, and a small-file helper.
+- JSON responses and custom response tuples.
 - Callable ASGI response support and routing relative to mounted paths.
 - Depends on `weft-server` and `orjson`. You can use any ASGI server.
 
@@ -16,7 +16,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 
 Auth, sessions, databases, validation schemas, templates, form or multipart
 parsing, CORS, CSRF protection, rate limiting, dependency injection, generated
-docs, background jobs, WebSockets, or built-in streaming.
+docs, background jobs, WebSockets, static file serving, or built-in streaming.
 
 Use existing ASGI middleware for CORS, authentication, sessions, or compression.
 [Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
@@ -141,35 +141,39 @@ body through `(scope, receive, send)`. Reuse external response classes for
 streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
 For example Starlette's StreamingResponse can be returned directly in a Wred handler.
 
-## Static files
+## Serving the frontend
+
+Use whatever you want to serve your frontend. Wred is an ASGI API backend;
+frontend hosting and build tools are your application's choice. Caddy, Nginx,
+Vite, ServeStatic, and Starlette are some options. Other ASGI middleware, web
+servers, frontend dev servers, CDNs, and static hosting services work too.
+
+Serving the frontend and API from one origin lets browser code use relative
+URLs such as `fetch('/api/hello')` without CORS configuration. If you use
+separate origins, configure CORS in middleware and account for cookie and
+credential rules. Opening HTML directly with `file://` does not avoid those
+browser restrictions.
+
+Starlette's [`FileResponse`](https://starlette.dev/responses/#fileresponse)
+can be returned directly from a Wred handler to stream a particular file,
+including support for HTTP range requests. Install Starlette in your application
+with `pip install starlette`, then use it for a known file path:
 
 ```python
+from pathlib import Path
+from starlette.responses import FileResponse
+
+FRONTEND_ROOT = Path(__file__).resolve().parent / 'frontend'
+
 @app.route('/')
 async def index(request):
-    return await app.static('index.html')
-
-@app.route('/static/{filename}')
-async def asset(request, filename):
-    try:
-        return await app.static(filename)
-    except (OSError, ValueError):
-        return {'error': 'Not Found'}, 'application/json', 404
+    return FileResponse(FRONTEND_ROOT / 'index.html')
 ```
 
-`static(filename, root='static')` returns `(bytes, content_type, status)`.
-Omitting `root`, passing `''`, or passing `None` uses the `static` directory in the
-current working directory. Set `root` to a string or `Path` to use another directory.
-MIME types are guessed. Files are read in a worker thread, entirely into memory.
-All file and path errors propagate to your handler, middleware, or ASGI server.
-Missing files raise `FileNotFoundError`, directories raise `IsADirectoryError`,
-and permission or other filesystem failures retain their original exceptions.
-Resolved paths outside the configured root, including symlink escapes, raise
-`ValueError` before any file is read. Invalid paths can also raise `ValueError`.
-The helper does not turn these errors into HTTP responses; catch exceptions in
-your application or middleware to return a 404 or another status.
-Small files. Don't feed it a movie.
-
-Use Nginx or a similar web server to serve your app's static files in production.
+For a directory of files, Starlette's
+[`StaticFiles`](https://starlette.dev/staticfiles/) can be mounted alongside
+Wred using an external ASGI router, as described under [Routes](#routes).
+The notebook example uses ServeStatic; neither library is required by Wred.
 
 ## Errors
 

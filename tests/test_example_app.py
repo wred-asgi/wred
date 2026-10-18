@@ -14,8 +14,66 @@ import sys
 import unittest
 from pathlib import Path
 
+import orjson
+
+from tests.test_wred import call_app
+
 
 class AppFactoryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_public_files_and_api_share_one_application(self):
+        from example_app.app import create_app
+
+        app = create_app(database=object())
+
+        async def request(path):
+            async def receive():
+                raise AssertionError('Public endpoints should not read a body')
+
+            messages = await call_app(
+                app,
+                {
+                    'type': 'http',
+                    'path': path,
+                    'method': 'GET',
+                    'headers': [],
+                    'query_string': b'',
+                },
+                receive,
+            )
+            self.assertEqual(messages[0]['type'], 'http.response.start')
+            self.assertEqual(messages[-1]['type'], 'http.response.body')
+            self.assertFalse(messages[-1].get('more_body', False))
+            return (
+                messages[0]['status'],
+                b''.join(message.get('body', b'') for message in messages[1:]),
+                dict(messages[0]['headers']),
+            )
+
+        for path, content_type, marker in [
+            ('/', b'text/html', b'Wred notebook'),
+            ('/static/app.css', b'text/css', b'.workspace'),
+            ('/static/app.js', b'text/javascript', b'/api/notes'),
+        ]:
+            with self.subTest(path=path):
+                status, body, headers = await request(path)
+                self.assertEqual(status, 200)
+                self.assertEqual(
+                    headers[b'content-type'].split(b';')[0], content_type
+                )
+                self.assertIn(b'max-age=0', headers[b'cache-control'])
+                self.assertIn(marker, body)
+
+        status, body, headers = await request('/ui')
+        self.assertEqual((status, body, headers[b'location']), (303, b'', b'/'))
+        status, body, headers = await request('/api/health')
+        self.assertEqual((status, orjson.loads(body)), (200, {'status': 'ok'}))
+        for path in ['/static/missing.js', '/auth.py', '/static/../auth.py']:
+            with self.subTest(path=path):
+                status, body, _ = await request(path)
+                self.assertEqual(
+                    (status, orjson.loads(body)), (404, {'error': 'Not Found'})
+                )
+
     def test_import_factory_does_not_construct_a_database(self):
         script = """
 from unittest.mock import patch

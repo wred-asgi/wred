@@ -9,11 +9,7 @@
     :license: BSD-3-Clause, see LICENSE for more details.
 """
 
-import tempfile
 import unittest
-from contextlib import chdir
-from pathlib import Path
-from unittest.mock import patch
 
 import orjson
 
@@ -162,112 +158,6 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     },
                 )
                 self.assertEqual(scope, original)
-
-    async def test_file_delivery_and_root_confinement(self):
-        # Exercise the public helper through the actual ASGI response boundary.
-        # This guards MIME/status delivery and accidental exposure outside
-        # root.
-        with tempfile.TemporaryDirectory() as directory:
-            base = Path(directory)
-            root = base / 'static'
-            root.mkdir()
-            (root / 'index.html').write_bytes(b'<p>Hello</p>')
-            (root / 'asset.unknownextension').write_bytes(b'\x00\xff')
-            (base / 'secret.txt').write_text('private')
-            (root / 'escape.txt').symlink_to(base / 'secret.txt')
-            custom_root = base / 'assets'
-            custom_root.mkdir()
-            (custom_root / 'index.html').write_bytes(b'<p>Custom root</p>')
-
-            app = App()
-
-            @app.route('/file', methods=['POST'])
-            async def file(request):
-                data = await request.json()
-                return await app.static(data['filename'], **root_options)
-
-            cases = [
-                ('index.html', None, b'text/html', b'<p>Hello</p>'),
-                (
-                    'asset.unknownextension',
-                    None,
-                    b'application/octet-stream',
-                    b'\x00\xff',
-                ),
-                ('missing.txt', FileNotFoundError, None, None),
-                ('.', IsADirectoryError, None, None),
-                ('../secret.txt', ValueError, None, None),
-                (str(base / 'secret.txt'), ValueError, None, None),
-                ('escape.txt', ValueError, None, None),
-                ('invalid\x00.txt', ValueError, None, None),
-            ]
-            cases = [
-                (options, *case)
-                for options in (
-                    {},
-                    {'root': ''},
-                    {'root': None},
-                    {'root': root},
-                    {'root': str(root)},
-                )
-                for case in cases
-            ]
-            cases.append(
-                (
-                    {'root': custom_root},
-                    'index.html',
-                    None,
-                    b'text/html',
-                    b'<p>Custom root</p>',
-                )
-            )
-            with chdir(base):
-                for (
-                    root_options,
-                    filename,
-                    error,
-                    content_type,
-                    body,
-                ) in cases:
-                    with self.subTest(root=root_options, filename=filename):
-
-                        async def receive():
-                            return {
-                                'type': 'http.request',
-                                'body': orjson.dumps({'filename': filename}),
-                            }
-
-                        scope = {
-                            'type': 'http',
-                            'path': '/file',
-                            'method': 'POST',
-                        }
-                        if error is not None:
-                            messages = []
-
-                            async def send(message):
-                                messages.append(message)
-
-                            with self.assertRaises(error):
-                                await app(scope, receive, send)
-                            self.assertEqual(messages, [])
-                            continue
-                        messages = await call_app(
-                            app, scope, receive
-                        )
-                        self.assertEqual(
-                            messages,
-                            [
-                                {
-                                    'type': 'http.response.start',
-                                    'status': 200,
-                                    'headers': [
-                                        (b'content-type', content_type)
-                                    ],
-                                },
-                                {'type': 'http.response.body', 'body': body},
-                            ],
-                        )
 
     async def test_dictionary_and_list_responses_are_json(self):
         app = App()
@@ -695,38 +585,6 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 ):
                     await app({'type': protocol}, receive, send)
                 self.assertEqual(messages, [])
-
-    async def test_file_read_failure_propagates_without_sending(self):
-        app = App()
-        with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / 'private.txt').write_text('private')
-
-            @app.route('/')
-            async def file(request):
-                return await app.static('private.txt', root=directory)
-
-            async def receive():
-                raise AssertionError(
-                    'File serving should not read the request body'
-                )
-
-            messages = []
-
-            async def send(message):
-                messages.append(message)
-
-            # Simulate the OS refusing a real file read, including when tests
-            # run as root.
-            with patch.object(
-                Path, 'read_bytes', side_effect=PermissionError('denied')
-            ):
-                with self.assertRaisesRegex(PermissionError, 'denied'):
-                    await app(
-                        {'type': 'http', 'path': '/', 'method': 'GET'},
-                        receive,
-                        send,
-                    )
-            self.assertEqual(messages, [])
 
     async def test_raw_and_custom_response_bodies(self):
         app = App()

@@ -131,28 +131,6 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(headers[b'cache-control'], b'no-store')
         return note
 
-    async def test_public_page_assets_health_and_redirect(self):
-        for path, content_type, marker in [
-            ('/', b'text/html', b'Wred notebook'),
-            ('/static/app.css', b'text/css', b'.workspace'),
-            ('/static/app.js', b'text/javascript', b'/api/notes'),
-        ]:
-            with self.subTest(path=path):
-                status, body, headers = await self.request(path)
-                self.assertEqual(status, 200)
-                self.assertEqual(headers[b'content-type'], content_type)
-                self.assertEqual(headers[b'cache-control'], b'no-cache')
-                self.assertIn(marker, body)
-        status, body, headers = await self.request('/ui')
-        self.assertEqual(
-            (status, body, headers[b'location']), (303, b'', b'/')
-        )
-        self.assertEqual(
-            (await self.request('/api/health'))[:2], (200, {'status': 'ok'})
-        )
-        with self.assertRaises(FileNotFoundError):
-            await self.request('/static/missing.js')
-
     async def test_lifespan_starts_and_stops_the_database(self):
         worker = self.new_app()
         messages = iter(
