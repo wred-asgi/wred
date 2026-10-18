@@ -131,12 +131,12 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             cases = [
                 ('index.html', 200, b'text/html', b'<p>Hello</p>'),
                 ('asset.unknownextension', 200, b'application/octet-stream', b'\x00\xff'),
-                ('missing.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
-                ('.', 404, b'text/plain; charset=utf-8', b'Not Found'),
-                ('../secret.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
-                (str(base / 'secret.txt'), 404, b'text/plain; charset=utf-8', b'Not Found'),
-                ('escape.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
-                ('invalid\x00.txt', 404, b'text/plain; charset=utf-8', b'Not Found'),
+                ('missing.txt', 404, b'application/json', b'{"error":"Not Found"}'),
+                ('.', 404, b'application/json', b'{"error":"Not Found"}'),
+                ('../secret.txt', 404, b'application/json', b'{"error":"Not Found"}'),
+                (str(base / 'secret.txt'), 404, b'application/json', b'{"error":"Not Found"}'),
+                ('escape.txt', 404, b'application/json', b'{"error":"Not Found"}'),
+                ('invalid\x00.txt', 404, b'application/json', b'{"error":"Not Found"}'),
             ]
             cases = [
                 (options, *case)
@@ -440,8 +440,8 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
             self.assertEqual(messages, [
                 {'type': 'http.response.start', 'status': 404,
-                 'headers': [(b'content-type', b'text/plain; charset=utf-8')]},
-                {'type': 'http.response.body', 'body': b'Not Found'},
+                 'headers': [(b'content-type', b'application/json')]},
+                {'type': 'http.response.body', 'body': b'{"error":"Not Found"}'},
             ])
 
     async def test_raw_and_custom_response_bodies(self):

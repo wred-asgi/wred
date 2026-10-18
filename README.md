@@ -157,7 +157,7 @@ async def asset(request, filename):
 Omitting `root`, passing `''`, or passing `None` uses the `static` directory in the
 current working directory. Set `root` to a string or `Path` to use another directory.
 MIME types are guessed; missing, unreadable, or outside-root files return
-plain-text 404, including symlink escapes. Files are read in a worker thread, entirely into memory.
+JSON 404 (`{"error":"Not Found"}`), including symlink escapes. Files are read in a worker thread, entirely into memory.
 Small files. Don't feed it a movie.
 
 ## Errors

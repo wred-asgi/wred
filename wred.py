@@ -107,9 +107,9 @@ class App:
             try:
                 directory = Path(root or 'static').resolve()
                 path = (directory / filename).resolve()
-                if not path.is_relative_to(directory) or not path.is_file(): return b'Not Found', 'text/plain; charset=utf-8', 404
+                if not path.is_relative_to(directory) or not path.is_file(): return b'{"error":"Not Found"}', 'application/json', 404
                 return path.read_bytes(), guess_type(path.name)[0] or 'application/octet-stream', 200
-            except (OSError, ValueError, RuntimeError): return b'Not Found', 'text/plain; charset=utf-8', 404
+            except (OSError, ValueError, RuntimeError): return b'{"error":"Not Found"}', 'application/json', 404
         return await to_thread(read)
 
     def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:
