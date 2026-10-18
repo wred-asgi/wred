@@ -29,7 +29,7 @@ class Request:
     def query(self) -> dict[str, str]:
         """Parse and cache query parameters; repeated keys keep their last value."""
         if self._query is None:
-            self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode(), keep_blank_values=True))
+            self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode(), keep_blank_values=True, errors='strict'))
         return self._query
 
     async def body(self) -> bytes:

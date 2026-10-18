@@ -233,11 +233,13 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         cases = [
             ('POST', '/input', b'{', b'', None, orjson.JSONDecodeError),
             ('GET', '/search', b'', b'\xff', None, UnicodeDecodeError),
+            ('GET', '/search', b'', b'q=%FF', None, UnicodeDecodeError),
+            ('GET', '/search', b'', b'%FF=value', None, UnicodeDecodeError),
             ('GET', '/invalid', b'', b'', 'unsupported response', TypeError),
             ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), ValueError),
         ]
         for method, path, body, query_string, response, error in cases:
-            with self.subTest(path=path, response=response):
+            with self.subTest(path=path, query_string=query_string, response=response):
                 messages = []
 
                 async def receive():

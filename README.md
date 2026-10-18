@@ -163,7 +163,7 @@ Small files. Don't feed it a movie.
 ## Errors
 
 Exceptions propagate to your ASGI server or middleware. Malformed JSON raises
-`orjson.JSONDecodeError`, invalid raw UTF-8 query bytes raise `UnicodeDecodeError`,
+`orjson.JSONDecodeError`, invalid UTF-8 query bytes (raw or percent-encoded) raise `UnicodeDecodeError`,
 client disconnects during body reads raise `ConnectionError`, and unsupported
 response types raise `TypeError`. Wred does not turn exceptions into responses.
 Malformed response tuples can raise `ValueError` during unpacking.
