@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    tests.test_wred
+    ~~~~~~~~~~~~~~~
+
+    Exercise Wred request handling and ASGI response behavior.
+
+    :copyright: (c) 2026 by Harrison Erd.
+    :license: BSD-3-Clause, see LICENSE for more details.
+"""
+
 import tempfile
 import unittest
 from contextlib import chdir
@@ -21,18 +32,29 @@ async def call_app(app, scope, receive):
 
 
 class WredTests(unittest.IsolatedAsyncioTestCase):
-    async def test_callable_responses_control_asgi_delivery_on_fixed_and_dynamic_routes(self):
+    async def test_callable_responses_on_fixed_and_dynamic_routes(self):
         class Response:
             def __init__(self, name):
                 self.name = name
 
             async def __call__(self, scope, receive, send):
                 message = await receive()
-                await send({'type': 'http.response.start', 'status': 202,
-                            'headers': [(b'content-type', b'text/plain'), (b'x-response', b'asgi')]})
-                await send({'type': 'http.response.body',
-                            'body': f'{scope["path"]}:{self.name}:'.encode(), 'more_body': True})
-                await send({'type': 'http.response.body', 'body': message['body']})
+                await send({
+                    'type': 'http.response.start',
+                    'status': 202,
+                    'headers': [
+                        (b'content-type', b'text/plain'),
+                        (b'x-response', b'asgi'),
+                    ],
+                })
+                await send({
+                    'type': 'http.response.body',
+                    'body': f'{scope["path"]}:{self.name}:'.encode(),
+                    'more_body': True,
+                })
+                await send(
+                    {'type': 'http.response.body', 'body': message['body']}
+                )
 
         app = App()
 
@@ -51,31 +73,60 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('/api/dynamic/alice', '/api', b'/api/dynamic/alice:alice:'),
         ]:
             with self.subTest(path=path):
+
                 async def receive():
                     return {'type': 'http.request', 'body': b'payload'}
 
-                messages = await call_app(app, {
-                    'type': 'http', 'path': path, 'root_path': root_path, 'method': 'POST',
-                }, receive)
-                self.assertEqual(messages, [
-                    {'type': 'http.response.start', 'status': 202,
-                     'headers': [(b'content-type', b'text/plain'), (b'x-response', b'asgi')]},
-                    {'type': 'http.response.body', 'body': prefix, 'more_body': True},
-                    {'type': 'http.response.body', 'body': b'payload'},
-                ])
+                messages = await call_app(
+                    app,
+                    {
+                        'type': 'http',
+                        'path': path,
+                        'root_path': root_path,
+                        'method': 'POST',
+                    },
+                    receive,
+                )
+                self.assertEqual(
+                    messages,
+                    [
+                        {
+                            'type': 'http.response.start',
+                            'status': 202,
+                            'headers': [
+                                (b'content-type', b'text/plain'),
+                                (b'x-response', b'asgi'),
+                            ],
+                        },
+                        {
+                            'type': 'http.response.body',
+                            'body': prefix,
+                            'more_body': True,
+                        },
+                        {'type': 'http.response.body', 'body': b'payload'},
+                    ],
+                )
 
-    async def test_mounted_routing_uses_complete_root_path_without_changing_scope(self):
+    async def test_mounted_routing_preserves_scope(self):
         app = App()
 
         @app.route('/items/{name}')
         async def item(request, name):
-            return {'route': name, 'path': request.path, 'scope_path': request.scope['path']}
+            return {
+                'route': name,
+                'path': request.path,
+                'scope_path': request.scope['path'],
+            }
 
         @app.route('/items/special')
         @app.route('/')
         @app.route('/apiary/items')
         async def fixed(request):
-            return {'route': 'fixed', 'path': request.path, 'scope_path': request.scope['path']}
+            return {
+                'route': 'fixed',
+                'path': request.path,
+                'scope_path': request.scope['path'],
+            }
 
         cases = [
             ('/items/alice', None, 'alice'),
@@ -92,6 +143,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         ]
         for path, root_path, route in cases:
             with self.subTest(path=path, root_path=root_path):
+
                 async def receive():
                     raise AssertionError('GET handlers should not read a body')
 
@@ -101,14 +153,20 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 original = scope.copy()
                 messages = await call_app(app, scope, receive)
                 self.assertEqual(messages[0]['status'], 200)
-                self.assertEqual(orjson.loads(messages[1]['body']), {
-                    'route': route, 'path': path, 'scope_path': path,
-                })
+                self.assertEqual(
+                    orjson.loads(messages[1]['body']),
+                    {
+                        'route': route,
+                        'path': path,
+                        'scope_path': path,
+                    },
+                )
                 self.assertEqual(scope, original)
 
     async def test_file_delivery_and_root_confinement(self):
         # Exercise the public helper through the actual ASGI response boundary.
-        # This guards MIME/status delivery and accidental exposure outside root.
+        # This guards MIME/status delivery and accidental exposure outside
+        # root.
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             root = base / 'static'
@@ -130,32 +188,102 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
 
             cases = [
                 ('index.html', 200, b'text/html', b'<p>Hello</p>'),
-                ('asset.unknownextension', 200, b'application/octet-stream', b'\x00\xff'),
-                ('missing.txt', 404, b'application/json', b'{"error":"Not Found"}'),
+                (
+                    'asset.unknownextension',
+                    200,
+                    b'application/octet-stream',
+                    b'\x00\xff',
+                ),
+                (
+                    'missing.txt',
+                    404,
+                    b'application/json',
+                    b'{"error":"Not Found"}',
+                ),
                 ('.', 404, b'application/json', b'{"error":"Not Found"}'),
-                ('../secret.txt', 404, b'application/json', b'{"error":"Not Found"}'),
-                (str(base / 'secret.txt'), 404, b'application/json', b'{"error":"Not Found"}'),
-                ('escape.txt', 404, b'application/json', b'{"error":"Not Found"}'),
-                ('invalid\x00.txt', 404, b'application/json', b'{"error":"Not Found"}'),
+                (
+                    '../secret.txt',
+                    404,
+                    b'application/json',
+                    b'{"error":"Not Found"}',
+                ),
+                (
+                    str(base / 'secret.txt'),
+                    404,
+                    b'application/json',
+                    b'{"error":"Not Found"}',
+                ),
+                (
+                    'escape.txt',
+                    404,
+                    b'application/json',
+                    b'{"error":"Not Found"}',
+                ),
+                (
+                    'invalid\x00.txt',
+                    404,
+                    b'application/json',
+                    b'{"error":"Not Found"}',
+                ),
             ]
             cases = [
                 (options, *case)
-                for options in ({}, {'root': ''}, {'root': None}, {'root': root}, {'root': str(root)})
+                for options in (
+                    {},
+                    {'root': ''},
+                    {'root': None},
+                    {'root': root},
+                    {'root': str(root)},
+                )
                 for case in cases
             ]
-            cases.append(({'root': custom_root}, 'index.html', 200, b'text/html', b'<p>Custom root</p>'))
+            cases.append(
+                (
+                    {'root': custom_root},
+                    'index.html',
+                    200,
+                    b'text/html',
+                    b'<p>Custom root</p>',
+                )
+            )
             with chdir(base):
-                for root_options, filename, status, content_type, body in cases:
+                for (
+                    root_options,
+                    filename,
+                    status,
+                    content_type,
+                    body,
+                ) in cases:
                     with self.subTest(root=root_options, filename=filename):
-                        async def receive():
-                            return {'type': 'http.request', 'body': orjson.dumps({'filename': filename})}
 
-                        messages = await call_app(app, {'type': 'http', 'path': '/file', 'method': 'POST'}, receive)
-                        self.assertEqual(messages, [
-                            {'type': 'http.response.start', 'status': status,
-                             'headers': [(b'content-type', content_type)]},
-                            {'type': 'http.response.body', 'body': body},
-                        ])
+                        async def receive():
+                            return {
+                                'type': 'http.request',
+                                'body': orjson.dumps({'filename': filename}),
+                            }
+
+                        messages = await call_app(
+                            app,
+                            {
+                                'type': 'http',
+                                'path': '/file',
+                                'method': 'POST',
+                            },
+                            receive,
+                        )
+                        self.assertEqual(
+                            messages,
+                            [
+                                {
+                                    'type': 'http.response.start',
+                                    'status': status,
+                                    'headers': [
+                                        (b'content-type', content_type)
+                                    ],
+                                },
+                                {'type': 'http.response.body', 'body': body},
+                            ],
+                        )
 
     async def test_dictionary_and_list_responses_are_json(self):
         app = App()
@@ -174,12 +302,24 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         ]
         for value, body in cases:
             with self.subTest(value=value):
-                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
-                self.assertEqual(messages, [
-                    {'type': 'http.response.start', 'status': 200,
-                     'headers': [(b'content-type', b'application/json')]},
-                    {'type': 'http.response.body', 'body': body},
-                ])
+                messages = await call_app(
+                    app,
+                    {'type': 'http', 'path': '/', 'method': 'GET'},
+                    receive,
+                )
+                self.assertEqual(
+                    messages,
+                    [
+                        {
+                            'type': 'http.response.start',
+                            'status': 200,
+                            'headers': [
+                                (b'content-type', b'application/json')
+                            ],
+                        },
+                        {'type': 'http.response.body', 'body': body},
+                    ],
+                )
 
     async def test_custom_status_and_explicit_json_errors(self):
         app = App()
@@ -205,15 +345,28 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         ]
         for method, path, request_body, status, body in cases:
             with self.subTest(path=path):
+
                 async def receive():
                     return {'type': 'http.request', 'body': request_body}
 
-                messages = await call_app(app, {'type': 'http', 'path': path, 'method': method}, receive)
-                self.assertEqual(messages, [
-                    {'type': 'http.response.start', 'status': status,
-                     'headers': [(b'content-type', b'application/json')]},
-                    {'type': 'http.response.body', 'body': body},
-                ])
+                messages = await call_app(
+                    app,
+                    {'type': 'http', 'path': path, 'method': method},
+                    receive,
+                )
+                self.assertEqual(
+                    messages,
+                    [
+                        {
+                            'type': 'http.response.start',
+                            'status': status,
+                            'headers': [
+                                (b'content-type', b'application/json')
+                            ],
+                        },
+                        {'type': 'http.response.body', 'body': body},
+                    ],
+                )
 
     async def test_parsing_and_response_errors_propagate_without_sending(self):
         app = App()
@@ -239,7 +392,9 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), ValueError),
         ]
         for method, path, body, query_string, response, error in cases:
-            with self.subTest(path=path, query_string=query_string, response=response):
+            with self.subTest(
+                path=path, query_string=query_string, response=response
+            ):
                 messages = []
 
                 async def receive():
@@ -249,19 +404,34 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     messages.append(message)
 
                 with self.assertRaises(error):
-                    await app({'type': 'http', 'path': path, 'method': method,
-                               'query_string': query_string}, receive, send)
+                    await app(
+                        {
+                            'type': 'http',
+                            'path': path,
+                            'method': method,
+                            'query_string': query_string,
+                        },
+                        receive,
+                        send,
+                    )
                 self.assertEqual(messages, [])
 
-    async def test_callable_response_errors_do_not_replace_a_started_stream(self):
+    async def test_callable_response_errors_preserve_started_stream(self):
         app = App()
 
         @app.route('/stream', methods=['POST'])
         async def stream(request):
             async def response(scope, receive, send):
-                await send({'type': 'http.response.start', 'status': 200,
-                            'headers': [(b'content-type', b'text/plain')]})
-                await send({'type': 'http.response.body', 'body': b'hello\n', 'more_body': True})
+                await send({
+                    'type': 'http.response.start',
+                    'status': 200,
+                    'headers': [(b'content-type', b'text/plain')],
+                })
+                await send({
+                    'type': 'http.response.body',
+                    'body': b'hello\n',
+                    'more_body': True,
+                })
                 await request.json()
 
             return response
@@ -275,12 +445,26 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             messages.append(message)
 
         with self.assertRaises(orjson.JSONDecodeError):
-            await app({'type': 'http', 'path': '/stream', 'method': 'POST'}, receive, send)
-        self.assertEqual(messages, [
-            {'type': 'http.response.start', 'status': 200,
-             'headers': [(b'content-type', b'text/plain')]},
-            {'type': 'http.response.body', 'body': b'hello\n', 'more_body': True},
-        ])
+            await app(
+                {'type': 'http', 'path': '/stream', 'method': 'POST'},
+                receive,
+                send,
+            )
+        self.assertEqual(
+            messages,
+            [
+                {
+                    'type': 'http.response.start',
+                    'status': 200,
+                    'headers': [(b'content-type', b'text/plain')],
+                },
+                {
+                    'type': 'http.response.body',
+                    'body': b'hello\n',
+                    'more_body': True,
+                },
+            ],
+        )
 
     async def test_route_priority_and_method_registration(self):
         app = App()
@@ -310,34 +494,60 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         ]
         for method, path, body in cases:
             with self.subTest(method=method, path=path):
+
                 async def receive():
                     raise AssertionError('These handlers do not read the body')
 
-                messages = await call_app(app, {'type': 'http', 'path': path, 'method': method}, receive)
+                messages = await call_app(
+                    app,
+                    {'type': 'http', 'path': path, 'method': method},
+                    receive,
+                )
                 self.assertEqual(messages[0]['status'], 200)
                 self.assertEqual(messages[1]['body'], body)
 
-    async def test_query_parameters_decode_to_strings_without_reading_body(self):
+    async def test_query_decodes_to_strings_without_reading_body(self):
         app = App()
 
         @app.route('/search')
         async def search(request):
-            return {'params': request.query(), 'q': request.query().get('q', '')}
+            return {
+                'params': request.query(),
+                'q': request.query().get('q', ''),
+            }
 
         cases = [
             (None, 200, {'params': {}, 'q': ''}),
             (b'', 200, {'params': {}, 'q': ''}),
-            (b'q=coffee+ideas&limit=20', 200,
-             {'params': {'q': 'coffee ideas', 'limit': '20'}, 'q': 'coffee ideas'}),
-            (b'q=C%2B%2B&label=caf%C3%A9&x%26y=a%3Db', 200,
-             {'params': {'q': 'C++', 'label': 'café', 'x&y': 'a=b'}, 'q': 'C++'}),
-            (b'q=&bare&tag=first&tag=last', 200,
-             {'params': {'q': '', 'bare': '', 'tag': 'last'}, 'q': ''}),
+            (
+                b'q=coffee+ideas&limit=20',
+                200,
+                {
+                    'params': {'q': 'coffee ideas', 'limit': '20'},
+                    'q': 'coffee ideas',
+                },
+            ),
+            (
+                b'q=C%2B%2B&label=caf%C3%A9&x%26y=a%3Db',
+                200,
+                {
+                    'params': {'q': 'C++', 'label': 'café', 'x&y': 'a=b'},
+                    'q': 'C++',
+                },
+            ),
+            (
+                b'q=&bare&tag=first&tag=last',
+                200,
+                {'params': {'q': '', 'bare': '', 'tag': 'last'}, 'q': ''},
+            ),
         ]
         for query_string, status, body in cases:
             with self.subTest(query_string=query_string):
+
                 async def receive():
-                    raise AssertionError('Query parsing should not read the request body')
+                    raise AssertionError(
+                        'Query parsing should not read the request body'
+                    )
 
                 scope = {'type': 'http', 'path': '/search', 'method': 'GET'}
                 if query_string is not None:
@@ -350,9 +560,17 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         app = App()
         reads = 0
         chunks = iter([
-            {'type': 'http.request', 'body': b'{"name":', 'more_body': True},
+            {
+                'type': 'http.request',
+                'body': b'{"name":',
+                'more_body': True,
+            },
             {'type': 'http.request', 'more_body': True},
-            {'type': 'http.request', 'body': b'"Alice"}', 'more_body': False},
+            {
+                'type': 'http.request',
+                'body': b'"Alice"}',
+                'more_body': False,
+            },
         ])
 
         @app.route('/stream', methods=['POST'])
@@ -360,28 +578,47 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             first = await request.body()
             parsed = await request.json()
             cached = await request.body()
-            return {'raw': first.decode(), 'cached': cached.decode(),
-                    'parsed': parsed, 'header': request.headers['x-example'],
-                    'cookie': request.headers['cookie']}
+            return {
+                'raw': first.decode(),
+                'cached': cached.decode(),
+                'parsed': parsed,
+                'header': request.headers['x-example'],
+                'cookie': request.headers['cookie'],
+            }
 
         async def receive():
             nonlocal reads
             reads += 1
             return next(chunks)
 
-        messages = await call_app(app, {
-            'type': 'http', 'http_version': '2', 'path': '/stream', 'method': 'POST',
-            'headers': [(b'X-Example', b'caf\xe9'),
-                        (b'Cookie', b'notebook_refresh=valid-token'),
-                        (b'cookie', b'theme=dark'), (b'COOKIE', b'lang=en')],
-        }, receive)
+        messages = await call_app(
+            app,
+            {
+                'type': 'http',
+                'http_version': '2',
+                'path': '/stream',
+                'method': 'POST',
+                'headers': [
+                    (b'X-Example', b'caf\xe9'),
+                    (b'Cookie', b'notebook_refresh=valid-token'),
+                    (b'cookie', b'theme=dark'),
+                    (b'COOKIE', b'lang=en'),
+                ],
+            },
+            receive,
+        )
         self.assertEqual(reads, 3)
         self.assertEqual(messages[0]['status'], 200)
-        self.assertEqual(orjson.loads(messages[1]['body']), {
-            'raw': '{"name":"Alice"}', 'cached': '{"name":"Alice"}',
-            'parsed': {'name': 'Alice'}, 'header': 'café',
-            'cookie': 'notebook_refresh=valid-token; theme=dark; lang=en',
-        })
+        self.assertEqual(
+            orjson.loads(messages[1]['body']),
+            {
+                'raw': '{"name":"Alice"}',
+                'cached': '{"name":"Alice"}',
+                'parsed': {'name': 'Alice'},
+                'header': 'café',
+                'cookie': 'notebook_refresh=valid-token; theme=dark; lang=en',
+            },
+        )
 
     async def test_disconnect_stops_body_reading(self):
         app = App()
@@ -404,11 +641,15 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             messages.append(message)
 
         with self.assertRaisesRegex(ConnectionError, 'Client disconnected'):
-            await app({'type': 'http', 'path': '/input', 'method': 'POST'}, receive, send)
+            await app(
+                {'type': 'http', 'path': '/input', 'method': 'POST'},
+                receive,
+                send,
+            )
         self.assertEqual(messages, [])
         self.assertEqual(reads, 1)
 
-    async def test_unsupported_protocols_raise_without_receiving_or_sending(self):
+    async def test_unsupported_protocols_raise_without_io(self):
         app = App()
 
         async def receive():
@@ -421,7 +662,9 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 async def send(message):
                     messages.append(message)
 
-                with self.assertRaisesRegex(RuntimeError, 'Unsupported ASGI scope type'):
+                with self.assertRaisesRegex(
+                    RuntimeError, 'Unsupported ASGI scope type'
+                ):
                     await app({'type': protocol}, receive, send)
                 self.assertEqual(messages, [])
 
@@ -435,16 +678,34 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 return await app.static('private.txt', root=directory)
 
             async def receive():
-                raise AssertionError('File serving should not read the request body')
+                raise AssertionError(
+                    'File serving should not read the request body'
+                )
 
-            # Simulate the OS refusing a real file read, including when tests run as root.
-            with patch.object(Path, 'read_bytes', side_effect=PermissionError('denied')):
-                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
-            self.assertEqual(messages, [
-                {'type': 'http.response.start', 'status': 404,
-                 'headers': [(b'content-type', b'application/json')]},
-                {'type': 'http.response.body', 'body': b'{"error":"Not Found"}'},
-            ])
+            # Simulate the OS refusing a real file read, including when tests
+            # run as root.
+            with patch.object(
+                Path, 'read_bytes', side_effect=PermissionError('denied')
+            ):
+                messages = await call_app(
+                    app,
+                    {'type': 'http', 'path': '/', 'method': 'GET'},
+                    receive,
+                )
+            self.assertEqual(
+                messages,
+                [
+                    {
+                        'type': 'http.response.start',
+                        'status': 404,
+                        'headers': [(b'content-type', b'application/json')],
+                    },
+                    {
+                        'type': 'http.response.body',
+                        'body': b'{"error":"Not Found"}',
+                    },
+                ],
+            )
 
     async def test_raw_and_custom_response_bodies(self):
         app = App()
@@ -455,32 +716,93 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
 
         cases = [
             (b'\x00\xff', 200, b'application/octet-stream', b'\x00\xff', []),
-            ((b'<p>Hello</p>', 'text/html; charset=utf-8', 202),
-             202, b'text/html; charset=utf-8', b'<p>Hello</p>', []),
-            (([], 'application/json', 201), 201, b'application/json', b'[]', []),
-            (({'error': 'Unauthorized'}, 'application/json', 401,
-              [('WWW-Authenticate', 'Bearer'), ('Cache-Control', 'no-store')]),
-             401, b'application/json', b'{"error":"Unauthorized"}',
-             [(b'www-authenticate', b'Bearer'), (b'cache-control', b'no-store')]),
-            ((b'', 'text/plain', 303,
-              [('Location', '/ui'), ('X-Label', 'caf\u00e9'),
-               ('Set-Cookie', 'a=1; Secure'), ('Set-Cookie', 'b=2; Secure')]),
-             303, b'text/plain', b'',
-             [(b'location', b'/ui'), (b'x-label', b'caf\xe9'),
-              (b'set-cookie', b'a=1; Secure'), (b'set-cookie', b'b=2; Secure')]),
-            (([], 'application/json', 200, []), 200, b'application/json', b'[]', []),
+            (
+                (b'<p>Hello</p>', 'text/html; charset=utf-8', 202),
+                202,
+                b'text/html; charset=utf-8',
+                b'<p>Hello</p>',
+                [],
+            ),
+            (
+                ([], 'application/json', 201),
+                201,
+                b'application/json',
+                b'[]',
+                [],
+            ),
+            (
+                (
+                    {'error': 'Unauthorized'},
+                    'application/json',
+                    401,
+                    [
+                        ('WWW-Authenticate', 'Bearer'),
+                        ('Cache-Control', 'no-store'),
+                    ],
+                ),
+                401,
+                b'application/json',
+                b'{"error":"Unauthorized"}',
+                [
+                    (b'www-authenticate', b'Bearer'),
+                    (b'cache-control', b'no-store'),
+                ],
+            ),
+            (
+                (
+                    b'',
+                    'text/plain',
+                    303,
+                    [
+                        ('Location', '/ui'),
+                        ('X-Label', 'caf\u00e9'),
+                        ('Set-Cookie', 'a=1; Secure'),
+                        ('Set-Cookie', 'b=2; Secure'),
+                    ],
+                ),
+                303,
+                b'text/plain',
+                b'',
+                [
+                    (b'location', b'/ui'),
+                    (b'x-label', b'caf\xe9'),
+                    (b'set-cookie', b'a=1; Secure'),
+                    (b'set-cookie', b'b=2; Secure'),
+                ],
+            ),
+            (
+                ([], 'application/json', 200, []),
+                200,
+                b'application/json',
+                b'[]',
+                [],
+            ),
         ]
         for response, status, content_type, body, headers in cases:
             with self.subTest(response=response):
-                async def receive():
-                    raise AssertionError('These responses do not use a request body')
 
-                messages = await call_app(app, {'type': 'http', 'path': '/', 'method': 'GET'}, receive)
-                self.assertEqual(messages, [
-                    {'type': 'http.response.start', 'status': status,
-                     'headers': [(b'content-type', content_type)] + headers},
-                    {'type': 'http.response.body', 'body': body},
-                ])
+                async def receive():
+                    raise AssertionError(
+                        'These responses do not use a request body'
+                    )
+
+                messages = await call_app(
+                    app,
+                    {'type': 'http', 'path': '/', 'method': 'GET'},
+                    receive,
+                )
+                self.assertEqual(
+                    messages,
+                    [
+                        {
+                            'type': 'http.response.start',
+                            'status': status,
+                            'headers': [(b'content-type', content_type)]
+                            + headers,
+                        },
+                        {'type': 'http.response.body', 'body': body},
+                    ],
+                )
 
 
 if __name__ == '__main__':

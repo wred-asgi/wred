@@ -1,4 +1,13 @@
-"""Private note CRUD, validation, filtering, pagination, and JSON export."""
+# -*- coding: utf-8 -*-
+"""
+    example_app.notes
+    ~~~~~~~~~~~~~~~~~
+
+    Private note CRUD, validation, filtering, pagination, and JSON export.
+
+    :copyright: (c) 2026 by Harrison Erd.
+    :license: BSD-3-Clause, see LICENSE for more details.
+"""
 
 from datetime import UTC, datetime
 from secrets import token_urlsafe
@@ -13,15 +22,22 @@ async def read_note(request, partial=False):
         data = await request.json()
     except orjson.JSONDecodeError:
         raise ValueError('Invalid JSON body') from None
-    if not isinstance(data, dict) or not data or data.keys() - {'title', 'body', 'pinned'}:
+    if (
+        not isinstance(data, dict)
+        or not data
+        or data.keys() - {'title', 'body', 'pinned'}
+    ):
         raise ValueError('Send an object containing title, body, or pinned')
     if not partial and 'title' not in data:
         raise ValueError('A title is required')
     if 'title' in data and (
-        not isinstance(data['title'], str) or not 1 <= len(data['title'].strip()) <= 100
+        not isinstance(data['title'], str)
+        or not 1 <= len(data['title'].strip()) <= 100
     ):
         raise ValueError('Title must contain 1–100 characters')
-    if 'body' in data and (not isinstance(data['body'], str) or len(data['body']) > 10_000):
+    if 'body' in data and (
+        not isinstance(data['body'], str) or len(data['body']) > 10_000
+    ):
         raise ValueError('Body must be a string of at most 10,000 characters')
     if 'pinned' in data and not isinstance(data['pinned'], bool):
         raise ValueError('Pinned must be a boolean')
@@ -35,7 +51,11 @@ async def owned_note(database, note_id, user):
     if note is None:
         return {'error': 'Note not found'}, 'application/json', 404
     if note['owner'] != user['id']:
-        return {'error': 'This note belongs to another user'}, 'application/json', 403
+        return (
+            {'error': 'This note belongs to another user'},
+            'application/json',
+            403,
+        )
     return note
 
 
@@ -56,14 +76,32 @@ def register_routes(app, database):
             limit = int(query.get('limit') or '5')
             offset = int(query.get('offset') or '0')
         except ValueError:
-            return {'error': 'Limit and offset must be integers'}, 'application/json', 400
+            return (
+                {'error': 'Limit and offset must be integers'},
+                'application/json',
+                400,
+            )
         if not 1 <= limit <= 50 or offset < 0:
-            return {'error': 'Limit must be 1–50; offset must be zero or greater'}, 'application/json', 400
+            return (
+                {
+                    'error': (
+                        'Limit must be 1–50; offset must be zero or greater'
+                    )
+                },
+                'application/json',
+                400,
+            )
         search = query.get('q', '').strip().casefold()
         pinned = query.get('pinned', '')
         if pinned not in ('', 'true', 'false'):
-            return {'error': 'Pinned filter must be true or false'}, 'application/json', 400
-        return await database.list_notes(request.user['id'], search, pinned, limit, offset)
+            return (
+                {'error': 'Pinned filter must be true or false'},
+                'application/json',
+                400,
+            )
+        return await database.list_notes(
+            request.user['id'], search, pinned, limit, offset
+        )
 
     @app.route('/api/notes', methods=['POST'])
     @protected(database)
@@ -82,7 +120,12 @@ def register_routes(app, database):
             'updated_at': now,
         }
         await database.create_note(note)
-        return note, 'application/json', 201, [('Location', f'/api/notes/{note_id}')]
+        return (
+            note,
+            'application/json',
+            201,
+            [('Location', f'/api/notes/{note_id}')],
+        )
 
     @app.route('/api/notes/{note_id}', methods=['GET'])
     @protected(database)
@@ -99,7 +142,9 @@ def register_routes(app, database):
             data = await read_note(request, partial=request.method == 'PATCH')
         except ValueError as error:
             return {'error': str(error)}, 'application/json', 400
-        data['updated_at'] = datetime.now(UTC).isoformat(timespec='microseconds')
+        data['updated_at'] = datetime.now(UTC).isoformat(
+            timespec='microseconds'
+        )
         updated = await database.update_note(note_id, request.user['id'], data)
         if updated is None:
             return {'error': 'Note not found'}, 'application/json', 404
@@ -115,7 +160,8 @@ def register_routes(app, database):
             return {'error': 'Note not found'}, 'application/json', 404
         return b'', 'application/json', 204
 
-    # This fixed path wins over /api/notes/{note_id}, even though it is registered afterward.
+    # This fixed path wins over /api/notes/{note_id}, even though it is
+    # registered afterward.
     @app.route('/api/notes/export', methods=['GET'])
     @protected(database)
     async def export_notes(request):

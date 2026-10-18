@@ -115,7 +115,7 @@ async def search(request):
 ```
 
 Query parameters preserve blank values; repeated keys keep the last value.
-Invalid percent-encoded UTF-8 is replaced with `�`.
+Invalid UTF-8 in raw or percent-encoded query bytes raises `UnicodeDecodeError`.
 JSON can be an object, array, or scalar. Validate inputs and convert types yourself.
 
 Authentication middleware can populate the scope for handlers to check.
