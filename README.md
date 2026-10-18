@@ -156,8 +156,14 @@ async def asset(request, filename):
 `static(filename, root='static')` returns `(bytes, content_type, status)`.
 Omitting `root`, passing `''`, or passing `None` uses the `static` directory in the
 current working directory. Set `root` to a string or `Path` to use another directory.
-MIME types are guessed; missing, unreadable, or outside-root files return
-JSON 404 (`{"error":"Not Found"}`), including symlink escapes. Files are read in a worker thread, entirely into memory.
+MIME types are guessed. Files are read in a worker thread, entirely into memory.
+All file and path errors propagate to your handler, middleware, or ASGI server.
+Missing files raise `FileNotFoundError`, directories raise `IsADirectoryError`,
+and permission or other filesystem failures retain their original exceptions.
+Resolved paths outside the configured root, including symlink escapes, raise
+`ValueError` before any file is read. Invalid paths can also raise `ValueError`.
+The helper does not turn these errors into HTTP responses; catch exceptions in
+your application or middleware to return a 404 or another status.
 Small files. Don't feed it a movie.
 
 ## Errors

@@ -113,16 +113,12 @@ class App:
         return params
 
     async def static(self, filename: str | Path, *, root: str | Path | None = 'static') -> tuple[bytes, str, int]:
-        """Serve a small file inside root (default: ./static), off the event loop."""
+        """Read a small file inside root off the event loop; errors propagate."""
         def read() -> tuple[bytes, str, int]:
-            try:
-                directory = Path(root or 'static').resolve()
-                path = (directory / filename).resolve()
-                if not path.is_relative_to(directory) or not path.is_file():
-                    return b'{"error":"Not Found"}', 'application/json', 404
-                return path.read_bytes(), guess_type(path.name)[0] or 'application/octet-stream', 200
-            except (OSError, ValueError, RuntimeError):
-                return b'{"error":"Not Found"}', 'application/json', 404
+            directory = Path(root or 'static').resolve()
+            path = (directory / filename).resolve()
+            path.relative_to(directory)
+            return path.read_bytes(), guess_type(path.name)[0] or 'application/octet-stream', 200
         return await to_thread(read)
 
     def route(self, path: str, methods: list[str] | tuple[str, ...] = ('GET',)) -> Callable:

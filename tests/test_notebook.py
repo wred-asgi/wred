@@ -150,7 +150,8 @@ class NotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             (await self.request('/api/health'))[:2], (200, {'status': 'ok'})
         )
-        self.assertEqual((await self.request('/static/missing.js'))[0], 404)
+        with self.assertRaises(FileNotFoundError):
+            await self.request('/static/missing.js')
 
     async def test_lifespan_starts_and_stops_the_database(self):
         worker = self.new_app()

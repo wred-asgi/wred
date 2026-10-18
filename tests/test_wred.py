@@ -187,44 +187,19 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 return await app.static(data['filename'], **root_options)
 
             cases = [
-                ('index.html', 200, b'text/html', b'<p>Hello</p>'),
+                ('index.html', None, b'text/html', b'<p>Hello</p>'),
                 (
                     'asset.unknownextension',
-                    200,
+                    None,
                     b'application/octet-stream',
                     b'\x00\xff',
                 ),
-                (
-                    'missing.txt',
-                    404,
-                    b'application/json',
-                    b'{"error":"Not Found"}',
-                ),
-                ('.', 404, b'application/json', b'{"error":"Not Found"}'),
-                (
-                    '../secret.txt',
-                    404,
-                    b'application/json',
-                    b'{"error":"Not Found"}',
-                ),
-                (
-                    str(base / 'secret.txt'),
-                    404,
-                    b'application/json',
-                    b'{"error":"Not Found"}',
-                ),
-                (
-                    'escape.txt',
-                    404,
-                    b'application/json',
-                    b'{"error":"Not Found"}',
-                ),
-                (
-                    'invalid\x00.txt',
-                    404,
-                    b'application/json',
-                    b'{"error":"Not Found"}',
-                ),
+                ('missing.txt', FileNotFoundError, None, None),
+                ('.', IsADirectoryError, None, None),
+                ('../secret.txt', ValueError, None, None),
+                (str(base / 'secret.txt'), ValueError, None, None),
+                ('escape.txt', ValueError, None, None),
+                ('invalid\x00.txt', ValueError, None, None),
             ]
             cases = [
                 (options, *case)
@@ -241,7 +216,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 (
                     {'root': custom_root},
                     'index.html',
-                    200,
+                    None,
                     b'text/html',
                     b'<p>Custom root</p>',
                 )
@@ -250,7 +225,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 for (
                     root_options,
                     filename,
-                    status,
+                    error,
                     content_type,
                     body,
                 ) in cases:
@@ -262,21 +237,30 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                                 'body': orjson.dumps({'filename': filename}),
                             }
 
+                        scope = {
+                            'type': 'http',
+                            'path': '/file',
+                            'method': 'POST',
+                        }
+                        if error is not None:
+                            messages = []
+
+                            async def send(message):
+                                messages.append(message)
+
+                            with self.assertRaises(error):
+                                await app(scope, receive, send)
+                            self.assertEqual(messages, [])
+                            continue
                         messages = await call_app(
-                            app,
-                            {
-                                'type': 'http',
-                                'path': '/file',
-                                'method': 'POST',
-                            },
-                            receive,
+                            app, scope, receive
                         )
                         self.assertEqual(
                             messages,
                             [
                                 {
                                     'type': 'http.response.start',
-                                    'status': status,
+                                    'status': 200,
                                     'headers': [
                                         (b'content-type', content_type)
                                     ],
@@ -668,7 +652,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     await app({'type': protocol}, receive, send)
                 self.assertEqual(messages, [])
 
-    async def test_file_read_failure_returns_404(self):
+    async def test_file_read_failure_propagates_without_sending(self):
         app = App()
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / 'private.txt').write_text('private')
@@ -682,30 +666,23 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     'File serving should not read the request body'
                 )
 
+            messages = []
+
+            async def send(message):
+                messages.append(message)
+
             # Simulate the OS refusing a real file read, including when tests
             # run as root.
             with patch.object(
                 Path, 'read_bytes', side_effect=PermissionError('denied')
             ):
-                messages = await call_app(
-                    app,
-                    {'type': 'http', 'path': '/', 'method': 'GET'},
-                    receive,
-                )
-            self.assertEqual(
-                messages,
-                [
-                    {
-                        'type': 'http.response.start',
-                        'status': 404,
-                        'headers': [(b'content-type', b'application/json')],
-                    },
-                    {
-                        'type': 'http.response.body',
-                        'body': b'{"error":"Not Found"}',
-                    },
-                ],
-            )
+                with self.assertRaisesRegex(PermissionError, 'denied'):
+                    await app(
+                        {'type': 'http', 'path': '/', 'method': 'GET'},
+                        receive,
+                        send,
+                    )
+            self.assertEqual(messages, [])
 
     async def test_raw_and_custom_response_bodies(self):
         app = App()
