@@ -234,7 +234,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('POST', '/input', b'{', b'', None, orjson.JSONDecodeError),
             ('GET', '/search', b'', b'\xff', None, UnicodeDecodeError),
             ('GET', '/invalid', b'', b'', 'unsupported response', TypeError),
-            ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), TypeError),
+            ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), ValueError),
         ]
         for method, path, body, query_string, response, error in cases:
             with self.subTest(path=path, response=response):
