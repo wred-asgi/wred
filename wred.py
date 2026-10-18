@@ -70,13 +70,13 @@ class App:
             raise RuntimeError(f"Unsupported ASGI scope type: {scope['type']}")
         request = Request(scope, receive, send)
         path = request.path
-        root = request.scope.get('root_path', '').rstrip('/')
+        root = scope.get('root_path', '').rstrip('/')
         if root and (path == root or path.startswith(root + '/')):
             path = path[len(root):] or '/'
         path = path.rstrip('/') or '/'
         method = request.method
-        if path in self.routes and method in self.routes[path]:
-            response = await self.routes[path][method](request)
+        if (handlers := self.routes.get(path)) is not None and (handler := handlers.get(method)) is not None:
+            response = await handler(request)
         else:
             parts = path.split('/')
             for pattern, handlers in self.pattern_routes.items():
@@ -84,11 +84,11 @@ class App:
                     response = await handlers[method](request, **params)
                     break
             else:
-                return await self.send_response(request.send, {"error": "Not Found"}, 404)
+                return await self.send_response(send, {"error": "Not Found"}, 404)
         if callable(response):
-            await response(request.scope, request.receive, request.send)
+            await response(scope, receive, send)
         else:
-            await self.send_response(request.send, response)
+            await self.send_response(send, response)
 
     async def send_response(self, send: Callable[[dict[str, Any]], Awaitable[None]], response: Any, status: int = 200) -> None:
         """Send JSON or (body, content_type, status[, headers]) with string header pairs."""
