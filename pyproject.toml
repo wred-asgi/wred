@@ -13,8 +13,5 @@ license-files = ["LICENSE"]
 authors = [{ name = "Harrison Erd", email = "harrisonerd@gmail.com" }]
 dependencies = ["orjson", "weft-server"]
 
-[tool.ruff]
-line-length = 79
-
-[tool.ruff.lint]
-select = ["E", "W", "N"]
+[project.urls]
+Homepage = "https://harrisonerd.com/wred"
