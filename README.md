@@ -54,6 +54,13 @@ Unsupported protocols raise `RuntimeError` without sending HTTP messages,
 following [ASGI guidance](https://asgi.readthedocs.io/en/latest/specs/main.html#protocol-specifications).
 You can also export a middleware wrapper as `app`.
 
+For public deployments, serve Wred behind a reverse proxy such as
+[Nginx](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size)
+or [Cloudflare](https://developers.cloudflare.com/waf/). Configure request-body
+size limits, HTTPS, timeouts, and rate limiting at that layer. Wred buffers request
+bodies in memory and does not impose a body-size limit. Restrict direct access to
+the ASGI server so clients cannot bypass the proxy's protections.
+
 ## Routes
 
 Handlers are async and receive a request. Methods default to `['GET']`;
@@ -95,7 +102,7 @@ with pretty much every ASGI application you can think of.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Header dict with lowercase names and Latin-1 values; repeated names keep their last value
+* `request.headers` -> Header dict with lowercase names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query()` -> Cached dict of string keys and values. No `await`!
 * `await request.body()` -> Cached body raw bytes

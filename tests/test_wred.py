@@ -368,9 +368,10 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             return next(chunks)
 
         messages = await call_app(app, {
-            'type': 'http', 'http_version': '1.1', 'path': '/stream', 'method': 'POST',
+            'type': 'http', 'http_version': '2', 'path': '/stream', 'method': 'POST',
             'headers': [(b'X-Example', b'caf\xe9'),
-                        (b'Cookie', b'notebook_refresh=valid-token; theme=dark; lang=en')],
+                        (b'Cookie', b'notebook_refresh=valid-token'),
+                        (b'cookie', b'theme=dark'), (b'COOKIE', b'lang=en')],
         }, receive)
         self.assertEqual(reads, 3)
         self.assertEqual(messages[0]['status'], 200)

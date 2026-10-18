@@ -27,7 +27,8 @@ class Request:
     def __init__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]):
         self.scope, self.receive, self.send = scope, receive, send
         self.path, self.method = scope['path'], scope['method']
-        self.headers = {k.decode().lower(): v.decode('latin-1') for k, v in scope.get('headers', [])}
+        self.headers = {}
+        for k, v in scope.get('headers', []): k = k.decode('latin-1').lower(); v = v.decode('latin-1'); self.headers[k] = self.headers[k] + '; ' + v if k == 'cookie' and k in self.headers else v
         self._body = self._query = None
 
     def query(self) -> dict[str, str]:
@@ -60,7 +61,7 @@ class App:
     """A minimal ASGI application framework."""
     def __init__(self):
         self.routes: dict[str, dict[str, Callable]] = {}
-        self.pattern_routes: dict[str, dict[str, Callable]] = {}
+        self.pattern_routes: dict[tuple[str, ...], dict[str, Callable]] = {}
 
     async def __call__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
         """Handle ASGI requests."""
@@ -80,8 +81,9 @@ class App:
         if path in self.routes and method in self.routes[path]:
             await self.dispatch_response(request, await self.routes[path][method](request))
             return
+        path_parts = path.split('/')
         for pattern, method_handlers in self.pattern_routes.items():
-            params = self.match_path(pattern, path)
+            params = self.match_path(pattern, path_parts)
             if params is not None and method in method_handlers:
                 await self.dispatch_response(request, await method_handlers[method](request, **params))
                 return
@@ -109,10 +111,8 @@ class App:
         await send({'type': 'http.response.start', 'status': status, 'headers': [(b'content-type', content_type.encode('latin-1'))] + headers})
         await send({'type': 'http.response.body', 'body': body})
 
-    def match_path(self, pattern: str, path: str) -> dict[str, str] | None:
+    def match_path(self, pattern_parts: tuple[str, ...], path_parts: list[str]) -> dict[str, str] | None:
         """Match normalized paths and extract parameters."""
-        pattern_parts = pattern.split('/')
-        path_parts = path.split('/')
         if len(pattern_parts) != len(path_parts):
             return None
         params = {}
@@ -143,7 +143,8 @@ class App:
         path = path.rstrip('/') or '/'
         def decorator(handler: Callable) -> Callable:
             routes = self.pattern_routes if '{' in path and '}' in path else self.routes
-            routes.setdefault(path, {}).update({m.upper(): handler for m in methods})
+            key = tuple(path.split('/')) if routes is self.pattern_routes else path
+            routes.setdefault(key, {}).update({m.upper(): handler for m in methods})
             return handler
         return decorator
 
