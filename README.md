@@ -193,12 +193,11 @@ the server without Wred attempting a second response.
 
 Since there isn't much to Wred, it's really fast. What it lacks in features it gains in speed.
 
-Wred running on Weft with 8 workers achieved up to 579,708 requests/second, averaging
-approximately 479,414 requests/second across five benchmark runs. Testing was performed
-locally using wrk with 4 threads, 256 concurrent connections, and 20-second runs, with
-an average p99 latency of just 3.69 ms. Testing was done on a Dell XPS 13 9350 with
-an Intel Core Ultra 7 256V (8 cores, up to 4.8 GHz), running Ubuntu 26.04.1 LTS
-(Linux 6.17.0-1023-oem, x86-64).
+Wred running on Weft with 8 workers achieved up to 561,103 requests/second, with a median
+of 549,344 requests/second across four runs. Average p99 latency was 3.65 ms, with
+zero socket errors or non-success responses. Testing used `wrk` with 4 threads, 256 concurrent
+connections, and 20-second runs on a Dell XPS 13 9350 with an Intel Core Ultra 7 256V (8 cores,
+up to 4.8 GHz), running Ubuntu 26.04.1 LTS (Linux 6.17.0-1023-oem, x86-64).
 
 With respect to the lack of features mentioned above, Wred is meant to be bare bones, it's really
 an experiment of how minimal and fast an ASGI framework can be without being raw ASGI. For an
