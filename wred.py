@@ -8,6 +8,7 @@ __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'B
 __version__ = '0.08'
 from collections.abc import Awaitable, Callable
 from asyncio import to_thread
+from functools import cached_property
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Any
@@ -17,14 +18,19 @@ import orjson
 class Request:
     """A request object encapsulating ASGI scope, receive, and send."""
     def __init__(self, scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
-        """Store the ASGI connection and decode request headers."""
+        """Store the ASGI connection and initialize request caches."""
         self.scope, self.receive, self.send = scope, receive, send
         self.path, self.method = scope['path'], scope['method']
-        self.headers: dict[str, str] = {}
-        for k, v in scope.get('headers', []):
-            k, v = k.decode('latin-1').lower(), v.decode('latin-1')
-            self.headers[k] = self.headers[k] + '; ' + v if k == 'cookie' and k in self.headers else v
         self._body = self._query = None
+
+    @cached_property
+    def headers(self) -> dict[str, str]:
+        """Decode and cache headers on first access."""
+        headers: dict[str, str] = {}
+        for k, v in self.scope.get('headers', []):
+            k, v = k.decode('latin-1').lower(), v.decode('latin-1')
+            headers[k] = headers[k] + '; ' + v if k == 'cookie' and k in headers else v
+        return headers
 
     def query(self) -> dict[str, str]:
         """Parse and cache query parameters; repeated keys keep their last value."""
@@ -62,10 +68,7 @@ class App:
         """Handle ASGI requests."""
         if scope['type'] != 'http':
             raise RuntimeError(f"Unsupported ASGI scope type: {scope['type']}")
-        await self.handle_http(Request(scope, receive, send))
-
-    async def handle_http(self, request: Request) -> None:
-        """Handle HTTP requests with routing and JSON response support."""
+        request = Request(scope, receive, send)
         path = request.path
         root = request.scope.get('root_path', '').rstrip('/')
         if root and (path == root or path.startswith(root + '/')):
@@ -73,15 +76,15 @@ class App:
         path = path.rstrip('/') or '/'
         method = request.method
         if path in self.routes and method in self.routes[path]:
-            return await self.dispatch_response(request, await self.routes[path][method](request))
-        parts = path.split('/')
-        for pattern, handlers in self.pattern_routes.items():
-            if (params := self.match_path(pattern, parts)) is not None and method in handlers:
-                return await self.dispatch_response(request, await handlers[method](request, **params))
-        await self.send_response(request.send, {"error": "Not Found"}, 404)
-
-    async def dispatch_response(self, request: Request, response: Any) -> None:
-        """Invoke an ASGI response or serialize an ordinary handler result."""
+            response = await self.routes[path][method](request)
+        else:
+            parts = path.split('/')
+            for pattern, handlers in self.pattern_routes.items():
+                if (params := self.match_path(pattern, parts)) is not None and method in handlers:
+                    response = await handlers[method](request, **params)
+                    break
+            else:
+                return await self.send_response(request.send, {"error": "Not Found"}, 404)
         if callable(response):
             await response(request.scope, request.receive, request.send)
         else:

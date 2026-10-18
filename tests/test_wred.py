@@ -540,6 +540,50 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(messages[0]['status'], status)
                 self.assertEqual(orjson.loads(messages[1]['body']), body)
 
+    async def test_headers_are_lazy_cached_and_replaceable(self):
+        app = App()
+        reads = []
+
+        class Headers(list):
+            def __iter__(self):
+                reads.append(True)
+                return super().__iter__()
+
+        @app.route('/unused')
+        async def unused(request):
+            return {'ok': True}
+
+        @app.route('/headers')
+        async def headers(request):
+            values = request.headers
+            values['x-local'] = 'added'
+            self.assertIs(request.headers, values)
+            self.assertEqual(len(reads), 1)
+            request.headers = {'replacement': 'works'}
+            return request.headers
+
+        async def receive():
+            raise AssertionError('Header access should not read the body')
+
+        for raw in ([], [(b'X-Example', b'value')]):
+            with self.subTest(headers=raw):
+                reads.clear()
+                scope = {
+                    'type': 'http',
+                    'path': '/unused',
+                    'method': 'GET',
+                    'headers': Headers(raw),
+                }
+                messages = await call_app(app, scope, receive)
+                self.assertEqual(messages[0]['status'], 200)
+                self.assertEqual(reads, [])
+                scope['path'] = '/headers'
+                messages = await call_app(app, scope, receive)
+                self.assertEqual(
+                    orjson.loads(messages[1]['body']),
+                    {'replacement': 'works'},
+                )
+
     async def test_streamed_body_is_cached_and_headers_are_available(self):
         app = App()
         reads = 0

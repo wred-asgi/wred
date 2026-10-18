@@ -102,7 +102,7 @@ with pretty much every ASGI application you can think of.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Header dict with lowercase names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
+* `request.headers` -> Header dict decoded and cached on first access, with lowercase names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query()` -> Cached dict of string keys and values. No `await`!
 * `await request.body()` -> Cached body raw bytes
@@ -150,7 +150,10 @@ async def index(request):
 
 @app.route('/static/{filename}')
 async def asset(request, filename):
-    return await app.static(filename)
+    try:
+        return await app.static(filename)
+    except (OSError, ValueError):
+        return {'error': 'Not Found'}, 'application/json', 404
 ```
 
 `static(filename, root='static')` returns `(bytes, content_type, status)`.
@@ -165,6 +168,8 @@ Resolved paths outside the configured root, including symlink escapes, raise
 The helper does not turn these errors into HTTP responses; catch exceptions in
 your application or middleware to return a 404 or another status.
 Small files. Don't feed it a movie.
+
+Use Nginx or a similar web server to serve your app's static files in production.
 
 ## Errors
 
