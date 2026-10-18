@@ -11,7 +11,10 @@ requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [{ name = "Harrison Erd", email = "harrisonerd@gmail.com" }]
-dependencies = ["orjson", "weft-server"]
+dependencies = ["orjson"]
+
+[project.optional-dependencies]
+server = ["weft-server"]
 
 [project.urls]
 Homepage = "https://harrisonerd.com/wred"

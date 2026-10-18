@@ -5,7 +5,7 @@
 
     Run the notebook demo with MongoDB listening on localhost:27017::
 
-        python -m pip install -e . pymongo servestatic
+        python -m pip install -e '.[server]' pymongo servestatic
         weft example_app.asgi:app
 
     Open http://127.0.0.1:8000. MongoDB preserves accounts, sessions,

@@ -10,7 +10,7 @@ Your API needs to return some JSON. It probably doesn't need a goddamn cathedral
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses and custom response tuples.
 - Callable ASGI response support and routing relative to mounted paths.
-- Depends on `weft-server` and `orjson`. You can use any ASGI server.
+- Depends on only `orjson`. You can use any ASGI server you wish.
 
 ## What you don't get
 
@@ -43,11 +43,14 @@ async def hello(request):
     return {'hello': 'world'}
 ```
 
-Run it with Weft, or any other ASGI server you like:
+To run it with Weft, install the optional `server` extra:
 
 ```bash
+pip install 'wred[server]'
 weft app:app
 ```
+
+You can also install and use any other ASGI server you like.
 
 Open <http://127.0.0.1:8000>. Wred is HTTP-only.
 Unsupported protocols raise `RuntimeError` without sending HTTP messages,
@@ -208,10 +211,12 @@ the server without Wred attempting a second response.
 
 Since there isn't much to Wred, it's really fast. What it lacks in features it gains in speed.
 
-Wred running on Weft with 8 workers achieved up to 561,103 requests/second, with a median
-of 549,344 requests/second across four runs. Average p99 latency was 3.65 ms, with
+Wred running on Peregrine 1.1.7 with 8 workers, ASGI, and uvloop
+achieved up to 646,979 requests/second, with a median of 622,399 requests/second
+across four runs on October 18, 2026. Average p99 latency across runs was 3.92 ms, with
 zero socket errors or non-success responses. Testing used `wrk` with 4 threads, 256 concurrent
-connections, and 20-second runs on a Dell XPS 13 9350 with an Intel Core Ultra 7 256V (8 cores,
+connections, and 20-second runs after a 5-second warmup for each run, using Python 3.14.4
+on a Dell XPS 13 9350 with an Intel Core Ultra 7 256V (8 cores,
 up to 4.8 GHz), running Ubuntu 26.04.1 LTS (Linux 6.17.0-1023-oem, x86-64).
 
 With respect to the lack of features mentioned above, Wred is meant to be bare bones, it's really

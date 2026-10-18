@@ -5,7 +5,7 @@ ASGI-compatible web services. It prioritizes simplicity and performance over all
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.08'
+__version__ = '0.09'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
