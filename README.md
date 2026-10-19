@@ -4,8 +4,8 @@
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
-The [documentation](https://harrisonerd.com/tutorial/index.html) includes an
-[API reference](https://harrisonerd.com/tutorial/api-reference.html), installation and configuration
+The [documentation](https://harrisonerd.com/wred/tutorial/index.html) includes an
+[API reference](https://harrisonerd.com/wred/tutorial/api-reference.html), installation and configuration
 guides, and a tutorial covering the notebook app, middleware, frontend serving,
 and deployment with Caddy or Nginx.
 
