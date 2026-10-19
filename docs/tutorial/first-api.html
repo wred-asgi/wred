@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Install a server, return a dict, and make a request. This is the part where a larger framework might ask you to generate a project, three directories, and a personal philosophy.">
+  <title>Your first API · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html" aria-current="page"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html" aria-current="page">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+      <h1>Your first API</h1>
+      <p class="lead">Install a server, return a dict, and make a request. This is the part where a larger framework might ask you to generate a project, three directories, and a personal philosophy.</p>
+      <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#install">Make a small project</a></li><li><a href="#routes">Give it some routes</a></li><li><a href="#run">Run it and ask it something</a></li><li><a href="#validation">Accept JSON without accepting absolutely anything</a></li><li><a href="#response-shapes">Choose the response you mean</a></li></ul></nav>
+      <h2 id="install">Make a small project</h2>
+    <p>Start in a new directory and install Wred 0.10 or newer. The <code>server</code> extra installs Weft.</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>mkdir hello-wred
+cd hello-wred
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install 'wred[server]>=0.10'</code></pre></div><h2 id="routes">Give it some routes</h2><p>Save this as <code>first_api.py</code>. An async handler receives a Wred request. Returning a dict or list produces JSON with status 200.</p><div class="code-block"><div class="code-heading"><span class="code-label">first_api.py</span><span class="code-actions"><a href="examples/first_api.py" download>Download</a></span></div><pre tabindex="0"><code>from wred import App
+
+app = App()
+
+
+@app.route(&#x27;/&#x27;)
+async def hello(request):
+    return {&#x27;hello&#x27;: &#x27;world&#x27;}
+
+
+@app.route(&#x27;/api/health&#x27;)
+async def health(request):
+    return {&#x27;status&#x27;: &#x27;ok&#x27;}
+
+
+@app.route(&#x27;/api/hello/{name}&#x27;)
+async def greet(request, name):
+    return {&#x27;hello&#x27;: name, &#x27;language&#x27;: request.query.get(&#x27;lang&#x27;, &#x27;en&#x27;)}</code></pre></div>
+    <p><code>name</code> is a string, passed by keyword. <code>request.query</code> is a synchronous cached property and returns strings too. Wred will not infer that a query parameter is an integer because you looked at it meaningfully.</p>
+    <p>Methods default to GET. Fixed paths win over parameterized paths for the same method; trailing slashes are ignored. Unknown paths and unsupported methods return JSON 404. HEAD, OPTIONS, and 405 handling aren’t added automatically.</p>
+    <h2 id="run">Run it and ask it something</h2><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>weft first_api:app</code></pre></div><p>Leave the server running. In a second terminal:</p><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>curl -sS http://127.0.0.1:8000/
+# {&quot;hello&quot;:&quot;world&quot;}
+
+curl -sS &#x27;http://127.0.0.1:8000/api/hello/Ada?lang=en&#x27;
+# {&quot;hello&quot;:&quot;Ada&quot;,&quot;language&quot;:&quot;en&quot;}</code></pre></div><p>The Python module is <code>first_api</code>; the exported ASGI application is <code>app</code>. That’s what the colon means. We have now exhausted the mystery of <code>first_api:app</code>.</p><h2 id="validation">Accept JSON without accepting absolutely anything</h2><p>Save the next example as <code>validation.py</code>, stop the first server, and run <code>weft validation:app</code>. This endpoint echoes a validated title; it does not store anything.</p><div class="code-block"><div class="code-heading"><span class="code-label">validation.py</span><span class="code-actions"><a href="examples/validation.py" download>Download</a></span></div><pre tabindex="0"><code>import orjson
+from wred import App
+
+app = App()
+
+
+@app.route(&#x27;/api/echo&#x27;, methods=[&#x27;POST&#x27;])
+async def echo(request):
+    try:
+        data = await request.json()
+    except orjson.JSONDecodeError:
+        return {&#x27;error&#x27;: &#x27;Invalid JSON&#x27;}, &#x27;application/json&#x27;, 400
+    if not isinstance(data, dict):
+        return {&#x27;error&#x27;: &#x27;Send a JSON object&#x27;}, &#x27;application/json&#x27;, 400
+    title = data.get(&#x27;title&#x27;)
+    if not isinstance(title, str) or not 1 &lt;= len(title.strip()) &lt;= 100:
+        return {&#x27;error&#x27;: &#x27;Title must contain 1–100 characters&#x27;}, &#x27;application/json&#x27;, 400
+    return {&#x27;title&#x27;: title.strip()}</code></pre></div><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>curl -i http://127.0.0.1:8000/api/echo \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;title&quot;:&quot;My first note&quot;}&#x27;</code></pre></div><p>The response body is <code>{"title":"My first note"}</code>. A JSON array, missing title, or invalid JSON gets 400. Schema validation is your application’s decision; a few explicit checks are perfectly respectable.</p><h2 id="response-shapes">Choose the response you mean</h2><div class="table-wrap"><table><thead><tr><th scope="col">Return value</th><th scope="col">Result</th></tr></thead><tbody><tr><td><code>{"ok": True}</code></td><td>JSON, 200</td></tr><tr><td><code>{"id": "n1"}, "application/json", 201</code></td><td>JSON, 201</td></tr><tr><td><code>b"", "text/plain", 303, [("Location", "/")]</code></td><td>Redirect</td></tr><tr><td><code>b"", "application/json", 204</code></td><td>Empty response</td></tr><tr><td>A callable ASGI response</td><td>The response object sends its own messages</td></tr></tbody></table></div><p>Custom tuple bodies can be bytes, dicts, or lists. Dicts and lists use JSON even if you give them another content type. Exceptions propagate to the server or your middleware; Wred doesn’t convert them into a reassuringly vague success.</p>
+      <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="index.html">← Build something with Wred.</a><a href="notebook.html">Run the notebook →</a></nav>
+      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+    </main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

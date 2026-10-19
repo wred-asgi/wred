@@ -251,7 +251,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
 
         @app.route('/search')
         async def search(request):
-            return request.query()
+            return request.query
 
         @app.route('/invalid')
         async def invalid(request):
@@ -380,14 +380,21 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(messages[0]['status'], 200)
                 self.assertEqual(messages[1]['body'], body)
 
-    async def test_query_decodes_to_strings_without_reading_body(self):
+    async def test_query_is_lazy_cached_and_decodes_to_strings(self):
         app = App()
+
+        @app.route('/unused')
+        async def unused(request):
+            return {'ok': True}
 
         @app.route('/search')
         async def search(request):
+            # Later accesses must retain the first parsed value, including {}.
+            params = request.query
+            request.scope['query_string'] = b'q=changed'
             return {
-                'params': request.query(),
-                'q': request.query().get('q', ''),
+                'params': params,
+                'q': request.query.get('q', ''),
             }
 
         cases = [
@@ -429,6 +436,22 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 messages = await call_app(app, scope, receive)
                 self.assertEqual(messages[0]['status'], status)
                 self.assertEqual(orjson.loads(messages[1]['body']), body)
+
+        async def receive():
+            raise AssertionError('Unused query should not read the body')
+
+        messages = await call_app(
+            app,
+            {
+                'type': 'http',
+                'path': '/unused',
+                'method': 'GET',
+                'query_string': b'\xff',
+            },
+            receive,
+        )
+        self.assertEqual(messages[0]['status'], 200)
+        self.assertEqual(orjson.loads(messages[1]['body']), {'ok': True})
 
     async def test_headers_are_lazy_cached_and_replaceable(self):
         app = App()

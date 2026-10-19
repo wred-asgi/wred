@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The other perfectly reasonable reverse proxy. It offers precise control and enough semicolons to make a JavaScript formatter feel underemployed.">
+  <title>Put Nginx in front · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html" aria-current="page"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html" aria-current="page">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+      <h1>Put Nginx in front</h1>
+      <p class="lead">The other perfectly reasonable reverse proxy. It offers precise control and enough semicolons to make a JavaScript formatter feel underemployed.</p>
+      <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#backend">Use the same private backend</a></li><li><a href="#config">Configure HTTPS and the proxy</a></li><li><a href="#reload">Check the config before reloading</a></li><li><a href="#throttle">Add a proxy rate limit when you need one</a></li><li><a href="#streams">Let event streams reach the client</a></li></ul></nav>
+      <h2 id="backend">Use the same private backend</h2><p>Use this instead of the Caddy setup. The notebook listens on loopback; Nginx owns the public ports. Run from the repository root:</p><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code># Run from the repository root with the notebook dependencies installed.
+weft example_app.asgi:app --host 127.0.0.1 --port 8000 \
+  --lifespan on --forwarded-allow-ips 127.0.0.1</code></pre></div><p>The app trusts forwarding information from <code>127.0.0.1</code>, not from arbitrary clients. Keep port 8000 private and forward the external scheme correctly.</p><h2 id="config">Configure HTTPS and the proxy</h2>
+    <p>Put these server blocks in a file included by Nginx’s <code>http</code> context. Replace the hostname and provision real certificate and key files at the configured paths first. The <a href="https://nginx.org/en/docs/http/configuring_https_servers.html">Nginx HTTPS guide</a> covers TLS configuration. Unlike the Caddy example, these certificate paths do not cause certificates to appear by force of optimism.</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">nginx.conf</span><span class="code-actions"><a href="examples/nginx.conf" download>Download</a></span></div><pre tabindex="0"><code># Include these server blocks inside nginx&#x27;s http context.
+# Replace the domain and certificate paths before enabling.
+server {
+    listen 80;
+    server_name notes.example.com;
+    return 308 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name notes.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/notes.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/notes.example.com/privkey.pem;
+
+    client_max_body_size 1m;
+    client_body_timeout 15s;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection &quot;&quot;;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}</code></pre></div><p><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass">proxy_pass</a> has no URI suffix, so it preserves paths such as <code>/api/notes</code>. The forwarded client header is overwritten with the peer address for this single-proxy setup. Host and scheme match the public request.</p><p><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">client_max_body_size</a> limits uploads before the application buffers them. The timeout values are starting points; choose values that match your workload.</p><h2 id="reload">Check the config before reloading</h2><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>sudo nginx -t
+sudo systemctl reload nginx
+curl -i https://notes.example.com/api/health</code></pre></div><p>Check login through the public domain too. A 403 from the notebook’s origin check often means the forwarded scheme or Host is wrong. Don’t fix it by deleting the origin check and declaring victory.</p><h2 id="throttle">Add a proxy rate limit when you need one</h2>
+    <p>Nginx’s request limiter can share its zone across Nginx workers on one host. For an optional general API limit, add this declaration once in the <code>http</code> context:</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Nginx · http context</span><span class="code-actions"></span></div><pre tabindex="0"><code>limit_req_zone $binary_remote_addr zone=wred_clients:10m rate=10r/s;</code></pre></div><p>Then add the following inside the existing <code>location /</code> block, alongside the proxy directives:</p><div class="code-block"><div class="code-heading"><span class="code-label">Nginx · location context</span><span class="code-actions"></span></div><pre tabindex="0"><code>limit_req zone=wred_clients burst=20 nodelay;
+limit_req_status 429;</code></pre></div><p>These numbers are illustrative, not a capacity plan delivered by a stranger’s HTML page. This general limit covers static files too; split locations for API-only or tighter login limits and preserve the required proxy settings. See the <a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">request-limit module</a>.</p><h2 id="streams">Let event streams reach the client</h2>
+    <p>For the independent <a href="frontend.html#responses">events example</a>, buffering can hide incremental output. In a dedicated <code>location /events</code>, include your normal proxy settings and add:</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Nginx · streaming location additions</span><span class="code-actions"></span></div><pre tabindex="0"><code>proxy_buffering off;
+proxy_read_timeout 300s;</code></pre></div><p>Choose a timeout longer than the interval between stream messages. Don’t disable buffering globally just because one endpoint needs it; ordinary responses have done nothing to deserve being dragged into this.</p>
+      <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="caddy.html">← Put Caddy in front</a><a href="operations.html">Keep it running →</a></nav>
+      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+    </main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

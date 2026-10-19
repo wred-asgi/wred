@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wred frontend example</title>
+</head>
+<body>
+  <h1>Hello from Wred</h1>
+  <p id="result" role="status">Loading…</p>
+  <script>
+    async function load() {
+      const result = document.getElementById('result');
+      try {
+        const response = await fetch('/api/hello');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        result.textContent = JSON.stringify(await response.json());
+      } catch (error) {
+        result.textContent = `Could not load the API: ${error.message}`;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

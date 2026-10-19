@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="There is no Wred settings object to memorize. Configure the component that actually owns the behavior. A small victory for both readability and your remaining memory.">
+  <title>Configuration &amp; architecture · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html" aria-current="page"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html" aria-current="page">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+<h1>Configuration &amp; architecture</h1>
+<p class="lead">There is no Wred settings object to memorize. Configure the component that actually owns the behavior. A small victory for both readability and your remaining memory.</p>
+<nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#ownership">Who configures what?</a></li><li><a href="#notebook-settings">Notebook environment variables</a></li><li><a href="#recipe-settings">Recipe-only settings</a></li><li><a href="#protocols">Separate HTTP from lifespan</a></li><li><a href="#proxy-settings">Configure forwarding at one layer</a></li></ul></nav>
+<h2 id="ownership">Who configures what?</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Concern</th><th scope="col">Owner and documentation</th></tr></thead><tbody><tr><td>Routes, methods, validation, error responses</td><td>Your Wred application. See the <a href="api-reference.html">API reference</a>.</td></tr><tr><td>Host, port, workers, reload, transport timeouts</td><td>Your ASGI server. Wred has no server configuration or CLI.</td></tr><tr><td>CORS, signed sessions, request context</td><td>The middleware stack. See <a href="starlette-middleware.html">Starlette middleware</a> and <a href="asgi-middleware.html">custom ASGI middleware</a>.</td></tr><tr><td>Database connections and credentials</td><td>Your application and database client. The notebook’s settings are below.</td></tr><tr><td>HTTPS, body limits, proxy routing</td><td>Your edge server. See <a href="caddy.html">Caddy</a> or <a href="nginx.html">Nginx</a>.</td></tr><tr><td>Process supervision and environment files</td><td>Your deployment system. See <a href="operations.html">operations</a>.</td></tr></tbody></table></div><p><code>App()</code> takes no settings and Wred reads no environment variables. A variable called <code>WRED_DEBUG</code> will do exactly what an unread environment variable usually does: occupy a small amount of memory.</p>
+<h2 id="notebook-settings">Notebook environment variables</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Variable</th><th scope="col">Default</th><th scope="col">Read by</th></tr></thead><tbody><tr><td><code>MONGODB_URI</code></td><td><code>mongodb://127.0.0.1:27017</code></td><td><code>example_app.app.create_app()</code></td></tr><tr><td><code>MONGODB_DATABASE</code></td><td><code>wred_notebook</code></td><td><code>example_app.app.create_app()</code></td></tr><tr><td><code>WRED_TEST_MONGODB_URI</code></td><td>Unset: database integration tests are skipped.</td><td><code>tests/test_notebook.py</code>; not the running app.</td></tr></tbody></table></div><p>Explicit <code>mongodb_uri</code> and <code>database_name</code> arguments override the two app environment values. Passing <code>database=...</code> overrides both by supplying an application-owned database object.</p><div class="code-block"><div class="code-heading"><span class="code-label">A notebook entry point in the repository root</span><span class="code-actions"></span></div><pre tabindex="0"><code>from example_app.app import create_app
+
+app = create_app(
+    mongodb_uri=&#x27;mongodb://127.0.0.1:27017&#x27;,
+    database_name=&#x27;my_notebook&#x27;,
+)</code></pre></div><p>The factory and its environment variables belong to the example application, not the Wred package. Its wrapper calls the database’s async <code>initialize()</code> and <code>close()</code> methods through lifespan.</p>
+<h2 id="recipe-settings">Recipe-only settings</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Setting</th><th scope="col">Used by</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td><code>SESSION_SECRET</code></td><td><code>examples/session_app.py</code></td><td>Required signing secret, shared by all workers. No built-in default.</td></tr><tr><td><code>COOKIE_SECURE</code></td><td><code>examples/session_app.py</code></td><td>Defaults to <code>1</code>. Set <code>0</code> only for the local HTTP recipe.</td></tr></tbody></table></div><p>These two settings configure the standalone Starlette session example. The notebook’s refresh cookie uses the incoming ASGI scheme instead. The similar-looking cookies are under different management.</p>
+<h2 id="protocols">Separate HTTP from lifespan</h2>
+
+<p>Wred’s inner app handles HTTP. The notebook’s outer app handles startup and shutdown; Starlette can also be the outer lifecycle owner when composing apps. Pass unhandled protocols through middleware to the component that owns them.</p>
+<p>A bare Wred app should use your server’s unsupported-lifespan detection or an explicit lifespan-off setting. The notebook should run with lifespan enabled so database startup failures are visible. <code>--lifespan on</code> is shown in its Weft commands.</p>
+<p>Register routes before serving traffic. One worker’s in-memory objects do not become shared state merely because another worker was launched with the same command.</p>
+
+<h2 id="proxy-settings">Configure forwarding at one layer</h2>
+
+<p>The deployment examples bind Weft to <code>127.0.0.1</code> and use <code>--forwarded-allow-ips 127.0.0.1</code>. Their proxies preserve the public Host and supply the scheme and client address. If you use the alternative Uvicorn middleware recipe, let that wrapper own this processing instead.</p>
+<p>Correct scheme information matters for Secure cookies, redirects, and the notebook’s same-origin checks. A proxy configuration is part of application behavior, not a decorative YAML-adjacent accessory.</p>
+
+<nav class="chapter-nav" aria-label="Related documentation"><a href="index.html">← Documentation overview</a><a href="api-reference.html">API reference →</a></nav>
+<footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+</main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

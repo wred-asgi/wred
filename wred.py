@@ -5,7 +5,7 @@ ASGI-compatible web services. It prioritizes simplicity and performance over all
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.09'
+__version__ = '0.10'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -18,7 +18,7 @@ class Request:
         """Store the ASGI connection and initialize request caches."""
         self.scope, self.receive, self.send = scope, receive, send
         self.path, self.method = scope['path'], scope['method']
-        self._body = self._query = None
+        self._body = None
 
     @cached_property
     def headers(self) -> dict[str, str]:
@@ -29,11 +29,10 @@ class Request:
             headers[k] = headers[k] + '; ' + v if k == 'cookie' and k in headers else v
         return headers
 
+    @cached_property
     def query(self) -> dict[str, str]:
-        """Parse and cache query parameters; repeated keys keep their last value."""
-        if self._query is None:
-            self._query = dict(parse_qsl(self.scope.get('query_string', b'').decode(), keep_blank_values=True, errors='strict'))
-        return self._query
+        """Parse and cache query parameters on first access; repeated keys keep their last value."""
+        return dict(parse_qsl(self.scope.get('query_string', b'').decode(), keep_blank_values=True, errors='strict'))
 
     async def body(self) -> bytes:
         """Read the request body from the ASGI receive stream."""

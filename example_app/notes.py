@@ -69,7 +69,7 @@ def register_routes(app, database):
         if request.scope.get('query_string', b'').count(b'&') >= 20:
             return {'error': 'Invalid query string'}, 'application/json', 400
         try:
-            query = request.query()
+            query = request.query
         except UnicodeDecodeError:
             return {'error': 'Invalid query string'}, 'application/json', 400
         try:

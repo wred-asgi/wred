@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The notebook’s auth is application code you can read. A radical alternative to discovering your security model through decorators with five undocumented arguments.">
+  <title>Notes, accounts, and ownership · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html" aria-current="page"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html" aria-current="page">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+      <h1>Notes, accounts, and ownership</h1>
+      <p class="lead">The notebook’s auth is application code you can read. A radical alternative to discovering your security model through decorators with five undocumented arguments.</p>
+      <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#request">Follow one create request</a></li><li><a href="#api">The notebook’s API</a></li><li><a href="#tokens">Access tokens and refresh cookies</a></li><li><a href="#curl">Try the auth flow with curl</a></li><li><a href="#ownership">Check ownership where the data changes</a></li><li><a href="#limits">Know what is local to a worker</a></li></ul></nav>
+      <h2 id="request">Follow one create request</h2>
+    <p>The browser posts JSON to <code>/api/notes</code> with an <code>Authorization: Bearer …</code> header. The <code>@protected(database)</code> decorator checks the token before the handler runs and sets <code>request.user</code> and <code>request.login_id</code>.</p>
+    <p><code>read_note()</code> rejects unknown fields and validates the title, body, and pinned flag. The handler generates an ID and timestamps, adds the owner from the authenticated user, and calls <code>database.create_note()</code>. A successful create returns JSON 201 with a <code>Location</code> header.</p>
+    <p>The owner comes from the authenticated user, never from a client-supplied <code>owner</code> field. Otherwise, congratulations: you have built an impersonation API.</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">example_app/notes.py · create route excerpt</span><span class="code-actions"></span></div><pre tabindex="0"><code>@app.route(&#x27;/api/notes&#x27;, methods=[&#x27;POST&#x27;])
+@protected(database)
+async def create_note(request):
+    try:
+        data = await read_note(request)
+    except ValueError as error:
+        return {&#x27;error&#x27;: str(error)}, &#x27;application/json&#x27;, 400
+    note_id = token_urlsafe(9)
+    now = datetime.now(UTC).isoformat(timespec=&#x27;microseconds&#x27;)
+    note = {
+        &#x27;id&#x27;: note_id,
+        &#x27;owner&#x27;: request.user[&#x27;id&#x27;],
+        **data,
+        &#x27;created_at&#x27;: now,
+        &#x27;updated_at&#x27;: now,
+    }
+    await database.create_note(note)
+    return (
+        note,
+        &#x27;application/json&#x27;,
+        201,
+        [(&#x27;Location&#x27;, f&#x27;/api/notes/{note_id}&#x27;)],
+    )</code></pre></div><h2 id="api">The notebook’s API</h2><div class="table-wrap"><table><thead><tr><th scope="col">Method and path</th><th scope="col">Behavior</th></tr></thead><tbody><tr><td>POST <code>/api/signup</code></td><td>Create an account; 201, or 409 for an existing username.</td></tr><tr><td>POST <code>/api/login</code></td><td>Return an access token and set the refresh cookie.</td></tr><tr><td>POST <code>/api/refresh</code></td><td>Use the refresh cookie to issue another access token.</td></tr><tr><td>GET <code>/api/me</code></td><td>Return the authenticated user.</td></tr><tr><td>POST <code>/api/logout</code></td><td>Revoke the login and expire its refresh cookie.</td></tr><tr><td>GET / POST <code>/api/notes</code></td><td>List private notes or create a note.</td></tr><tr><td>GET / PUT / PATCH / DELETE <code>/api/notes/{note_id}</code></td><td>Read, replace editable fields, partially update, or delete a note.</td></tr><tr><td>GET <code>/api/notes/export</code></td><td>Download the authenticated user’s notes as JSON.</td></tr></tbody></table></div><p>The fixed <code>/api/notes/export</code> route wins over <code>/api/notes/{note_id}</code>, even though it is registered afterward. Listing accepts <code>q</code>, <code>pinned=true|false</code>, <code>limit</code> from 1 to 50, and a nonnegative <code>offset</code>.</p><h2 id="tokens">Access tokens and refresh cookies</h2>
+    <p>Passwords use PBKDF2-HMAC-SHA256 with a random salt and 600,000 iterations. Hashing runs through <code>asyncio.to_thread()</code> so the event loop can keep serving other requests. Unknown usernames still perform a dummy hash.</p>
+    <p>Access and refresh tokens are random opaque strings. MongoDB stores SHA-256 digests of those tokens. Access tokens last one hour; the login’s refresh window lasts seven days. The database checks expiry during authentication instead of waiting for MongoDB’s TTL cleanup to get around to it.</p>
+    <p>The browser keeps the access token in memory. The refresh token lives in an HttpOnly, SameSite=Strict cookie scoped to <code>/api</code>, with Secure added when the ASGI scheme is HTTPS. Refresh reuses the cookie while issuing new access tokens; it does not rotate the refresh token on each call.</p>
+    <p>MongoDB stores each login and its access credentials in one document. Logout deletes that document, revoking the login’s access tokens as well. The browser’s <code>renewLogin()</code> shares one refresh promise across concurrent requests and refuses to replay an old account’s pending request under a newly logged-in account.</p>
+    <h2 id="curl">Try the auth flow with curl</h2>
+    <p>With the notebook running, use a separate shell. The password here is demonstration data. Use something you haven’t published in a tutorial for your real account.</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>curl -sS http://127.0.0.1:8000/api/signup \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;username&quot;:&quot;ada&quot;,&quot;password&quot;:&quot;a sufficiently long example password&quot;}&#x27;
+
+curl -sS -c notebook.cookies http://127.0.0.1:8000/api/login \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -H &#x27;X-Notebook-Request: 1&#x27; \
+  -d &#x27;{&quot;username&quot;:&quot;ada&quot;,&quot;password&quot;:&quot;a sufficiently long example password&quot;}&#x27;</code></pre></div><p>Copy the <code>access_token</code> from the login JSON into a shell variable, then create and list notes:</p><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>read -r -s NOTEBOOK_TOKEN
+# Paste the access token, then press Enter.
+
+curl -i http://127.0.0.1:8000/api/notes \
+  -H &quot;Authorization: Bearer $NOTEBOOK_TOKEN&quot; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;title&quot;:&quot;Ship it&quot;,&quot;body&quot;:&quot;After reading the deployment chapter.&quot;,&quot;pinned&quot;:true}&#x27;
+
+curl -sS &#x27;http://127.0.0.1:8000/api/notes?limit=5&amp;offset=0&#x27; \
+  -H &quot;Authorization: Bearer $NOTEBOOK_TOKEN&quot;
+
+curl -sS -b notebook.cookies -X POST http://127.0.0.1:8000/api/refresh \
+  -H &#x27;X-Notebook-Request: 1&#x27;</code></pre></div><p>Login and refresh require <code>X-Notebook-Request: 1</code>. Browser requests also face the app’s same-origin checks. A cookie jar contains credentials; keep it private and remove it when you finish.</p><h2 id="ownership">Check ownership where the data changes</h2>
+    <p>List and export operations filter by owner. Reading another user’s existing note returns 403; a missing ID returns 404. Updates and deletes include both the note ID and owner in the MongoDB write filter, so an earlier ownership check isn’t the sole line of defense.</p>
+    <p>The application limits titles to 100 characters and bodies to 10,000 characters. PATCH preserves omitted fields; PUT requires a title and fills omitted body and pinned values with their defaults. Both reject fields outside <code>title</code>, <code>body</code>, and <code>pinned</code>.</p>
+    <h2 id="limits">Know what is local to a worker</h2>
+    <p>The rate limiter stores timestamps in memory per application instance. A client can get three successful calls to the demo endpoint per ten-second window <em>per worker</em>. Multiple workers don’t magically share a Python dict, however enthusiastically you deploy them.</p>
+    <p>Database-backed sessions survive app restarts; rate-limit buckets do not. For shared throttling, use a gateway or a shared store. Before deploying an adapted auth system, decide how you will handle account recovery, token abuse, CSRF, and operational monitoring. The notebook demonstrates a design; it isn’t an identity provider hiding in a trench coat.</p>
+
+      <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="notebook.html">← Run the notebook</a><a href="starlette-middleware.html">Borrow Starlette’s middleware →</a></nav>
+      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+    </main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

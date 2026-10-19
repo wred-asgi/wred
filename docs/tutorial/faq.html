@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The questions that usually arrive just after the first successful curl request, when optimism starts acquiring requirements.">
+  <title>Frequently asked questions · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html" aria-current="page"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html" aria-current="page">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+<h1>Frequently asked questions</h1>
+<p class="lead">The questions that usually arrive just after the first successful curl request, when optimism starts acquiring requirements.</p>
+<nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#scope">What does Wred deliberately leave out?</a></li><li><a href="#server">Do I have to use Weft?</a></li><li><a href="#requests">Can I use Starlette’s Request APIs on a Wred request?</a></li><li><a href="#methods">Why does POST or HEAD return 404?</a></li><li><a href="#responses">Why can I parse JSON null but not return None?</a></li><li><a href="#forms">How do I handle forms or uploaded files?</a></li><li><a href="#lifespan">Where do startup tasks and database cleanup go?</a></li><li><a href="#streams">Can Wred stream or handle WebSockets?</a></li><li><a href="#concurrency">Can handlers call blocking code or launch background jobs?</a></li><li><a href="#limits">Are the notebook’s rate limits global?</a></li><li><a href="#performance">Will my app get the README’s benchmark numbers?</a></li></ul></nav>
+<h2 id="scope">What does Wred deliberately leave out?</h2>
+
+<p>Authentication, sessions, database integration, schemas, templates, multipart/form parsing, CORS, CSRF protection, dependency injection, generated API docs, background jobs, WebSockets, and built-in static or streaming responses. The tutorial shows how to compose several of these from application code and ASGI libraries.</p>
+<p>The <a href="api-reference.html">API reference</a> describes what the core does. A feature’s absence is permission to choose a component, not an invitation to pretend the feature is unnecessary.</p>
+
+<h2 id="server">Do I have to use Weft?</h2>
+
+<p>No. <code>wred[server]</code> is a convenience extra for Weft. Install the base package and your preferred ASGI server if you want something else. Wred is ASGI, not a WSGI application; use the correct interface when a server supports both.</p>
+
+<h2 id="requests">Can I use Starlette’s Request APIs on a Wred request?</h2>
+
+<p>Wrapping an application with Starlette middleware does not replace the request object Wred creates. Read middleware data through <code>request.scope</code>, or add your own application adapter. See <a href="api-reference.html#request">Request’s attributes</a>.</p>
+<p><code>request.query</code> is a synchronous cached property. <code>request.body()</code> and <code>request.json()</code> must be awaited. Python will not reinterpret this distinction as a stylistic preference.</p>
+
+<h2 id="methods">Why does POST or HEAD return 404?</h2>
+
+<p>A route defaults to GET. Register methods explicitly. Wred uses the same 404 fallback for unknown paths and unsupported methods; it does not supply automatic HEAD, OPTIONS, or 405 behavior. CORS middleware can handle browser preflights.</p>
+
+<h2 id="responses">Why can I parse JSON null but not return None?</h2>
+
+<p>Input parsing accepts any JSON value. Wred’s direct response handling supports dicts, lists, and bytes, plus the documented tuple forms. Return a callable JSON response object when you need a JSON scalar, or return <code>b"", "application/json", 204</code> for no content.</p>
+
+<h2 id="forms">How do I handle forms or uploaded files?</h2>
+
+<p>Wred has no form or multipart parser. Choose a parser or ASGI component deliberately, install its dependencies, and arrange who reads the receive stream. A second consumer cannot reread events already consumed by the first. Enforce body and file limits before buffering uploads.</p>
+
+<h2 id="lifespan">Where do startup tasks and database cleanup go?</h2>
+
+<p>In a lifespan-aware outer ASGI app. The notebook’s <code>NotebookApp</code> initializes and closes its database there. A bare Wred instance rejects lifespan. See <a href="notebook.html#lifespan">the actual wrapper</a> and <a href="configuration.html#protocols">protocol configuration</a>.</p>
+
+<h2 id="streams">Can Wred stream or handle WebSockets?</h2>
+
+<p>A handler can return a callable ASGI response such as Starlette’s StreamingResponse for HTTP streaming or SSE. WebSocket scopes are rejected by Wred itself; route them to a separate ASGI app with an outer router if you need them.</p>
+
+<h2 id="concurrency">Can handlers call blocking code or launch background jobs?</h2>
+
+<p>Handlers are awaited on the event loop. Calling a blocking database client or doing expensive CPU work directly there blocks other requests in that worker. Use an async client, an appropriate thread for blocking I/O, or separate workers for expensive work.</p>
+<p>A detached task is not a durable job queue. If work must survive a restart, use a durable queue and workers that own it. The operating system is unimpressed by how important your untracked task felt.</p>
+
+<h2 id="limits">Are the notebook’s rate limits global?</h2>
+
+<p>No. They are per app instance and per worker. Database sessions are persistent; the in-memory timestamp buckets are not. Use shared application storage or an edge limiter for a shared policy. See <a href="nginx.html#throttle">the Nginx example</a>.</p>
+
+<h2 id="performance">Will my app get the README’s benchmark numbers?</h2>
+
+<p>Those numbers describe one workload on one machine with a specific server configuration. Database calls, passwords, middleware, payload size, concurrency, and client behavior all change throughput and latency. Measure the work your application actually does. A hello-world benchmark remains impressively good at saying hello.</p>
+
+<nav class="chapter-nav" aria-label="Related documentation"><a href="index.html">← Documentation overview</a><a href="api-reference.html">API reference →</a></nav>
+<footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+</main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

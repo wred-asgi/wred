@@ -5,11 +5,8 @@
 ## Installation
 
 ```bash
-$ pip install wred
+$ pip install 'wred[server]'
 ```
-
-Only `orjson` is required. To include the optional Weft ASGI server, use
-`pip install 'wred[server]'`. You can also install and use another ASGI server.
 
 ## Quick Start
 
@@ -18,7 +15,9 @@ from wred import App
 
 app = App()
 
-@app.route("/")
+@app.route('/')
 async def index(request):
-    return {"hello": "world"}
+    return {'hello': 'world'}
+
+# run with `weft app:app`
 ```

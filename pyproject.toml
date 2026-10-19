@@ -18,3 +18,4 @@ server = ["weft-server"]
 
 [project.urls]
 Homepage = "https://harrisonerd.com/wred"
+Repository = "https://gitman.io/patx/wred"

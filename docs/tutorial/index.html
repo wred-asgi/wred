@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Build an app, look up an API, or find out which component owns the configuration. A tutorial and reference for a framework that still fits in one Python file.">
+  <title>Wred documentation · Tutorial and API reference</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html" aria-current="page">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html" aria-current="page">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+      <h1>Wred documentation</h1>
+      <p class="lead">Build an app, look up an API, or find out which component owns the configuration. A tutorial and reference for a framework that still fits in one Python file.</p>
+<aside class="note"><p>These docs cover Wred 0.10, where <code>request.query</code> is a cached property. Upgrading from 0.9? Remove the parentheses; see <a href="releases.html#version-010">migration notes</a>.</p></aside>
+
+      <h2 id="reference">Look something up</h2>
+<p>Following a lesson is useful. Finding the exact method signature without rereading a lesson is also useful. We have bravely decided to provide both.</p>
+<ul>
+  <li><a href="installation.html">Installation &amp; quick start</a> — Python requirements, extras, servers, and editable installs.</li>
+  <li><a href="api-reference.html">API reference</a> — App, routes, Request, response formats, and ASGI helpers.</li>
+  <li><a href="configuration.html">Configuration &amp; architecture</a> — settings ownership and the notebook’s environment variables.</li>
+  <li><a href="errors.html">Errors &amp; troubleshooting</a> — exceptions, HTTP statuses, and debugging.</li>
+  <li><a href="faq.html">Frequently asked questions</a> — the usual surprises, catalogued.</li>
+  <li><a href="security.html">Deployment boundaries</a> — body limits, proxy trust, credentials, and input handling.</li>
+  <li><a href="development.html">Development &amp; contributing</a> — checks, source changes, docs, and bug reports.</li>
+  <li><a href="releases.html">Release notes &amp; upgrading</a> — the 0.10 query-property change and the optional server extra.</li>
+</ul>
+<p>The search box looks through these pages and the tutorial. Everything runs locally in the browser; no search account, index service, or ritual sacrifice required.</p>
+<h2 id="what-you-build">The app we’re actually building</h2>
+    <p>The repository includes a notebook with accounts, private notes, search, pagination, JSON export, a browser interface, and MongoDB storage. We’ll run it, follow a request through its files, then explore the bits you might want to borrow for your own app.</p>
+    <p>Wred handles HTTP routes and responses. Your application chooses the database, authentication, middleware, and frontend. It’s a small framework with a very healthy relationship with the word “elsewhere.”</p>
+    <div class="request-path" aria-label="Request flow"><span>Browser</span><b aria-hidden="true">→</b><span>Caddy or Nginx</span><b aria-hidden="true">→</b><span>ASGI server</span><b aria-hidden="true">→</b><span>Middleware</span><b aria-hidden="true">→</b><span>Wred + your code</span></div>
+    <p>The chapters move from local development to deployment. The middleware and frontend recipes are independent examples; they don’t silently rewrite the notebook app while you’re looking away.</p>
+    <h2 id="before-starting">Bring these things</h2>
+    <ul><li>Python 3.11 or newer, a terminal, and enough JavaScript to recognize <code>fetch()</code>.</li>
+    <li>A running MongoDB instance for the notebook chapters. The first API and most middleware examples work without it.</li>
+    <li>A Linux or macOS shell for the commands shown. On Windows, use WSL or adapt virtualenv activation to PowerShell.</li></ul>
+    <p>Examples use Weft through <code>wred[server]</code>. Wred itself only requires <code>orjson</code>. Starlette, PyMongo, ServeStatic, and the other extras belong to the examples that use them.</p>
+    <h2 id="chapters">Work through the tutorial</h2><ol class="reading-order"><li><a href="first-api.html">1. Your first API</a><p>Routes, requests, validation, JSON, and response tuples.</p></li><li><a href="notebook.html">2. Run the notebook</a><p>Start MongoDB, run the example, and follow the source files.</p></li><li><a href="data-and-auth.html">3. Notes, accounts, and ownership</a><p>Trace note creation, bearer tokens, refresh cookies, and ownership.</p></li><li><a href="starlette-middleware.html">4. Borrow Starlette’s middleware</a><p>Add CORS, host checks, compression, errors, and signed sessions.</p></li><li><a href="asgi-middleware.html">5. Write a little ASGI middleware</a><p>Build request context and reuse proxy-header middleware.</p></li><li><a href="frontend.html">6. Serve a frontend and other responses</a><p>Compose static files, API mounts, downloads, and event streams.</p></li><li><a href="caddy.html">7. Put Caddy in front</a><p>Deploy with automatic HTTPS and a private Python backend.</p></li><li><a href="nginx.html">8. Put Nginx in front</a><p>Configure TLS, forwarding, body limits, and throttling.</p></li><li><a href="operations.html">9. Keep it running</a><p>Supervise workers, manage configuration, and diagnose failures.</p></li></ol><h2 id="using-examples">Copy the bits you need</h2>
+    <p>Python and configuration examples have download links. Save each example with the filename shown. Run the standalone Python examples from the directory you saved them in; stop one server with Ctrl+C before starting another on port 8000.</p>
+    <p>From a checkout of this repository, you can also run the standalone examples directly:</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e &#x27;.[server]&#x27; starlette itsdangerous
+cd docs/tutorial/examples
+weft first_api:app</code></pre></div><p>The notebook chapters use the repository root instead. Each chapter says which directory and dependencies it expects, because scavenger hunts are a terrible package manager.</p>
+      <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="first-api.html">Your first API →</a></nav>
+      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+    </main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

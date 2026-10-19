@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ASGI middleware wraps an ASGI app. Wred is an ASGI app. No adapter ceremony, secret handshake, or framework conversion experience required.">
+  <title>Borrow Starlette’s middleware · Wred docs</title>
+  <link rel="icon" type="image/png" href="../wred-logo.png">
+  <link rel="stylesheet" href="tutorial.css">
+  <script src="search-index.js" defer></script>
+  <script src="tutorial.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><img src="../wred-logo.png" width="108" alt="Wred"><span>Docs</span></a>
+    <div class="docs-search" role="search" aria-label="Documentation search">
+      <label for="docs-query">Search docs</label>
+      <input id="docs-query" type="search" autocomplete="off" placeholder="Routes, headers, middleware…" aria-controls="search-results" maxlength="200" disabled>
+      <div id="search-results" class="search-results" hidden><p id="search-status" role="status"></p><ol id="search-matches"></ol></div>
+    </div>
+    <nav aria-label="Project"><a href="../index.html">Home</a><a href="api-reference.html">API</a><a href="https://gitman.io/patx/wred">Source</a></nav>
+  </header>
+  <div class="layout">
+    <nav class="contents" aria-label="Documentation"><a class="overview" href="index.html">Documentation overview</a>
+<h2>Tutorial</h2><ol>
+<li><a href="first-api.html"><span class="num">1.</span><span>Your first API</span></a></li>
+<li><a href="notebook.html"><span class="num">2.</span><span>Run the notebook</span></a></li>
+<li><a href="data-and-auth.html"><span class="num">3.</span><span>Notes, accounts, and ownership</span></a></li>
+<li><a href="starlette-middleware.html" aria-current="page"><span class="num">4.</span><span>Starlette middleware</span></a></li>
+<li><a href="asgi-middleware.html"><span class="num">5.</span><span>ASGI middleware</span></a></li>
+<li><a href="frontend.html"><span class="num">6.</span><span>Frontend &amp; responses</span></a></li>
+<li><a href="caddy.html"><span class="num">7.</span><span>Deploy with Caddy</span></a></li>
+<li><a href="nginx.html"><span class="num">8.</span><span>Deploy with Nginx</span></a></li>
+<li><a href="operations.html"><span class="num">9.</span><span>Operations</span></a></li>
+</ol>
+<h2>Reference</h2><ol>
+<li><a class="reference-link" href="installation.html"><span>Installation &amp; quick start</span></a></li>
+<li><a class="reference-link" href="api-reference.html"><span>API reference</span></a></li>
+<li><a class="reference-link" href="configuration.html"><span>Configuration &amp; architecture</span></a></li>
+<li><a class="reference-link" href="errors.html"><span>Errors &amp; troubleshooting</span></a></li>
+<li><a class="reference-link" href="faq.html"><span>Frequently asked questions</span></a></li>
+<li><a class="reference-link" href="security.html"><span>Deployment boundaries</span></a></li>
+</ol>
+<h2>Project</h2><ol>
+<li><a class="reference-link" href="development.html"><span>Development &amp; contributing</span></a></li>
+<li><a class="reference-link" href="releases.html"><span>Release notes &amp; upgrading</span></a></li>
+</ol></nav>
+    <details class="mobile-contents"><summary>Browse documentation</summary><p><a href="index.html">Documentation overview</a></p><h3>Tutorial</h3><ul><li><a href="first-api.html">Your first API</a></li><li><a href="notebook.html">Run the notebook</a></li><li><a href="data-and-auth.html">Notes, accounts, and ownership</a></li><li><a href="starlette-middleware.html" aria-current="page">Starlette middleware</a></li><li><a href="asgi-middleware.html">ASGI middleware</a></li><li><a href="frontend.html">Frontend &amp; responses</a></li><li><a href="caddy.html">Deploy with Caddy</a></li><li><a href="nginx.html">Deploy with Nginx</a></li><li><a href="operations.html">Operations</a></li></ul><h3>Reference</h3><ul><li><a href="installation.html">Installation &amp; quick start</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="configuration.html">Configuration &amp; architecture</a></li><li><a href="errors.html">Errors &amp; troubleshooting</a></li><li><a href="faq.html">Frequently asked questions</a></li><li><a href="security.html">Deployment boundaries</a></li></ul><h3>Project</h3><ul><li><a href="development.html">Development &amp; contributing</a></li><li><a href="releases.html">Release notes &amp; upgrading</a></li></ul></details>
+    <main id="main">
+      <h1>Borrow Starlette’s middleware</h1>
+      <p class="lead">ASGI middleware wraps an ASGI app. Wred is an ASGI app. No adapter ceremony, secret handshake, or framework conversion experience required.</p>
+      <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#install">Install what you use</a></li><li><a href="#stack">Build an explicit stack</a></li><li><a href="#cors">CORS belongs outside the error handler</a></li><li><a href="#other-layers">Hosts, compression, and errors</a></li><li><a href="#sessions">A separate signed-cookie session recipe</a></li></ul></nav>
+      <h2 id="install">Install what you use</h2><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>python -m pip install &#x27;wred[server]&#x27; starlette itsdangerous</code></pre></div><p><code>itsdangerous</code> is needed for the session recipe below. Wred’s request is still a Wred request after wrapping; middleware-provided data is available in its ASGI <code>scope</code>.</p><h2 id="stack">Build an explicit stack</h2><p>Save this as <code>starlette_app.py</code> and run <code>weft starlette_app:app</code>. Register routes on <code>api</code>; export the completed middleware stack as <code>app</code>.</p><div class="code-block"><div class="code-heading"><span class="code-label">starlette_app.py</span><span class="code-actions"><a href="examples/starlette_app.py" download>Download</a></span></div><pre tabindex="0"><code>from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.errors import ServerErrorMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import JSONResponse
+from wred import App
+
+api = App()
+
+
+@api.route(&#x27;/api/hello&#x27;)
+async def hello(request):
+    return {&#x27;hello&#x27;: &#x27;world&#x27;}
+
+
+async def server_error(request, exc):
+    return JSONResponse({&#x27;error&#x27;: &#x27;Internal server error&#x27;}, status_code=500)
+
+
+# Requests enter the last wrapper first.
+app = GZipMiddleware(api, minimum_size=1000)
+app = TrustedHostMiddleware(app, allowed_hosts=[&#x27;localhost&#x27;, &#x27;127.0.0.1&#x27;, &#x27;api.example.com&#x27;])
+app = ServerErrorMiddleware(app, handler=server_error, debug=False)
+app = CORSMiddleware(
+    app,
+    allow_origins=[&#x27;http://localhost:5173&#x27;],
+    allow_methods=[&#x27;GET&#x27;, &#x27;POST&#x27;, &#x27;PATCH&#x27;, &#x27;DELETE&#x27;],
+    allow_headers=[&#x27;Authorization&#x27;, &#x27;Content-Type&#x27;],
+    expose_headers=[&#x27;Location&#x27;],
+)</code></pre></div><div class="request-path" aria-label="Middleware request order"><span>CORS</span><b aria-hidden="true">→</b><span>Server errors</span><b aria-hidden="true">→</b><span>Trusted host</span><b aria-hidden="true">→</b><span>Gzip</span><b aria-hidden="true">→</b><span>Wred</span></div><p>The last wrapper receives the request first. Responses travel back through the layers. The wrapper accepting the request is the object your ASGI server must import. Exporting the inner <code>api</code> skips every layer, a very efficient way to misconfigure middleware.</p><h2 id="cors">CORS belongs outside the error handler</h2>
+    <p>This sample allows a frontend at <code>http://localhost:5173</code>. CORS is outermost so generated 500 responses can carry its headers. It also answers browser preflight requests before they reach Wred.</p>
+    <p>For cookie credentials, set <code>allow_credentials=True</code> and explicit origins, methods, and headers. CORS grants browser access; it does not authenticate the caller.</p>
+    <p>See <a href="https://starlette.dev/middleware/#corsmiddleware">Starlette’s CORS documentation</a> and <a href="https://github.com/Kludex/starlette/blob/main/starlette/middleware/cors.py">implementation</a>.</p>
+    <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>curl -i -X OPTIONS http://127.0.0.1:8000/api/hello \
+  -H &#x27;Origin: http://localhost:5173&#x27; \
+  -H &#x27;Access-Control-Request-Method: POST&#x27; \
+  -H &#x27;Access-Control-Request-Headers: Content-Type&#x27;</code></pre></div><p>Expect a successful preflight with <code>access-control-allow-origin: http://localhost:5173</code>. The actual sample endpoint is GET-only; a successful preflight does not create a POST handler. The route list still has a job.</p><aside class="note"><p>The notebook intentionally requires same-origin login and refresh requests. Adding CORSMiddleware alone does not turn that auth flow into a cross-origin design. Keep its frontend on the same origin, or deliberately revise the origin checks, cookies, and CSRF model together.</p></aside><h2 id="other-layers">Hosts, compression, and errors</h2>
+    <p><code>TrustedHostMiddleware</code> checks the Host header. It does not decide which proxy IPs to trust. Gzip compresses eligible responses above the configured threshold. Our tiny hello JSON is below 1,000 bytes, so it remains tiny hello JSON.</p>
+    <p><code>ServerErrorMiddleware</code> supplies a JSON 500 response while allowing the exception to be logged. Debug mode stays off here; a public traceback is a surprisingly detailed résumé for your server.</p>
+    <p>See the <a href="https://starlette.dev/middleware/">middleware reference</a>. If your reverse proxy handles compression, choose one compression layer. Configure HTTPS redirects only after the app receives the correct forwarded scheme; otherwise you may build a redirect loop with excellent uptime.</p>
+    <h2 id="sessions">A separate signed-cookie session recipe</h2><p>This is an alternative example, not a replacement for the notebook’s database-backed logins. Save as <code>session_app.py</code>.</p><div class="code-block"><div class="code-heading"><span class="code-label">session_app.py</span><span class="code-actions"><a href="examples/session_app.py" download>Download</a></span></div><pre tabindex="0"><code>import os
+
+from starlette.middleware.sessions import SessionMiddleware
+from wred import App
+
+api = App()
+
+
+@api.route(&#x27;/visits&#x27;)
+async def visits(request):
+    session = request.scope[&#x27;session&#x27;]
+    session[&#x27;visits&#x27;] = session.get(&#x27;visits&#x27;, 0) + 1
+    return {&#x27;visits&#x27;: session[&#x27;visits&#x27;]}
+
+
+app = SessionMiddleware(
+    api,
+    secret_key=os.environ[&#x27;SESSION_SECRET&#x27;],
+    same_site=&#x27;lax&#x27;,
+    https_only=os.environ.get(&#x27;COOKIE_SECURE&#x27;, &#x27;1&#x27;) == &#x27;1&#x27;,
+)</code></pre></div><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>export SESSION_SECRET=&quot;$(python -c &#x27;import secrets; print(secrets.token_hex(32))&#x27;)&quot;
+# Local HTTP only. Leave COOKIE_SECURE unset for HTTPS deployments.
+COOKIE_SECURE=0 weft session_app:app</code></pre></div><p>In a second terminal:</p><div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>curl -sS -c visits.cookies http://127.0.0.1:8000/visits
+curl -sS -b visits.cookies -c visits.cookies http://127.0.0.1:8000/visits
+# {&quot;visits&quot;:2}</code></pre></div><p>Keep the secret stable across workers and restarts. Session data is signed, not encrypted: store a harmless preference or counter, not a password. Wred reads it through <code>request.scope["session"]</code>. There is no <code>request.session</code> property waiting to be discovered.</p><p>See <a href="https://github.com/Kludex/starlette/blob/main/starlette/middleware/sessions.py">Starlette’s session implementation</a>.</p>
+      <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="data-and-auth.html">← Notes, accounts, and ownership</a><a href="asgi-middleware.html">Write a little ASGI middleware →</a></nav>
+      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+    </main>
+  </div>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>
