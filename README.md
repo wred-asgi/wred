@@ -4,8 +4,8 @@
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
-The [documentation](docs/tutorial/index.html) includes an
-[API reference](docs/tutorial/api-reference.html), installation and configuration
+The [documentation](https://harrisonerd.com/tutorial/index.html) includes an
+[API reference](https://harrisonerd.com/tutorial/api-reference.html), installation and configuration
 guides, and a tutorial covering the notebook app, middleware, frontend serving,
 and deployment with Caddy or Nginx.
 
@@ -115,7 +115,7 @@ Wred 0.9 uses `request.query()`; remove the parentheses when upgrading.
 * `request.method` -> HTTP method
 * `request.headers` -> Header dict decoded and cached on first access, with lowercase names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
-* `request.query` -> Dict of string keys and values, parsed and cached on first access. No `()` or `await`!
+* `request.query` -> Dict of string keys and values, parsed and cached on first access.
 * `await request.body()` -> Cached body raw bytes
 * `await request.json()` -> Parsed JSON body; an empty body becomes `{}`
 
