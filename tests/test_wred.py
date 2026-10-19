@@ -626,16 +626,16 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 [],
             ),
             (
-                ([], 'application/json', 201),
+                ([], 'text/plain', 201),
                 201,
-                b'application/json',
+                b'text/plain',
                 b'[]',
                 [],
             ),
             (
                 (
                     {'error': 'Unauthorized'},
-                    'application/json',
+                    'application/problem+json',
                     401,
                     [
                         ('WWW-Authenticate', 'Bearer'),
@@ -643,7 +643,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                     ],
                 ),
                 401,
-                b'application/json',
+                b'application/problem+json',
                 b'{"error":"Unauthorized"}',
                 [
                     (b'www-authenticate', b'Bearer'),

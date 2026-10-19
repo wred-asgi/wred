@@ -137,13 +137,15 @@ signed, not encrypted. Wred doesn't supply a session property.
 
 Dicts and lists become `application/json` with HTTP 200. Bytes default to
 `application/octet-stream`. Custom responses use `(body, content_type, status[, headers])`.
-Tuple bodies must be bytes, dicts, or lists; dicts and lists always use `application/json`.
+Tuple bodies must be bytes, dicts, or lists. Dicts and lists are JSON-encoded while
+preserving the tuple's explicit content type.
 Headers are string pairs; repeated `Set-Cookie` headers are supported.
 
 * `{'hello': 'world'}` -> JSON object, 200
 * `[{'id': 1}, {'id': 2}]` -> JSON array, 200
 * `b'hello', 'text/plain', 200` -> Text response
 * `{'id': 3}, 'application/json', 201, [('Location', '/items/3')]` -> Created resource with a custom header
+* `{'error': 'Invalid'}, 'application/problem+json', 400` -> JSON with a custom media type
 * `b'', 'text/plain', 303, [('Location', '/')]` -> Redirect
 * `b'', 'application/json', 204` -> No content
 
