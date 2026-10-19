@@ -499,6 +499,8 @@ asyncio.run(main())
             'limit=0',
             'limit=51',
             'offset=-1',
+            'offset=18446744073709551616',
+            'offset=' + '9' * 100,
             'pinned=maybe',
             '&'.join(f'x={i}' for i in range(21)),
         ]:

@@ -158,11 +158,11 @@ function updateDraftState() {
   $('save-state').textContent = dirty() ? 'Unsaved changes' : state.selected ? 'Saved' : 'Ready when you are';
 }
 
-function showNote(note) {
+function showNote(note, draft = note) {
   state.selected = note ? structuredClone(note) : null;
-  $('note-title').value = note?.title || '';
-  $('note-body').value = note?.body || '';
-  $('note-pinned').checked = note?.pinned || false;
+  $('note-title').value = draft?.title || '';
+  $('note-body').value = draft?.body || '';
+  $('note-pinned').checked = draft?.pinned || false;
   $('editor-heading').textContent = note ? 'Edit note' : 'New note';
   $('save-note').textContent = note ? 'Save changes' : 'Save note';
   $('discard').textContent = note ? 'Discard changes' : 'Clear draft';
@@ -249,14 +249,21 @@ $('note-form').addEventListener('input', updateDraftState);
 $('note-form').addEventListener('submit', event => {
   event.preventDefault();
   const id = state.selected?.id;
+  const sequence = selectionSequence;
   const values = { title: $('note-title').value, body: $('note-body').value, pinned: $('note-pinned').checked };
   action(async () => {
     const { data } = await api(id ? `/api/notes/${encodeURIComponent(id)}` : '/api/notes', { method: id ? 'PATCH' : 'POST', data: values });
-    selectionSequence++;
-    showNote(data);
+    if (sequence === selectionSequence) {
+      // Keep edits made during the save, but retain the saved ID and baseline.
+      const draft = { title: $('note-title').value, body: $('note-body').value, pinned: $('note-pinned').checked };
+      for (const key of Object.keys(draft)) {
+        if (draft[key] === values[key]) draft[key] = data[key];
+      }
+      showNote(data, draft);
+      notice(dirty() ? 'Note saved. Newer edits are unsaved.' : 'Note saved.');
+    }
     state.offset = 0;
     await loadNotes();
-    notice('Note saved.');
   }, $('save-note'));
 });
 

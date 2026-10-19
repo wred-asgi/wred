@@ -81,11 +81,13 @@ def register_routes(app, database):
                 'application/json',
                 400,
             )
-        if not 1 <= limit <= 50 or offset < 0:
+        # The offset is echoed in JSON, whose serializer supports uint64.
+        if not 1 <= limit <= 50 or not 0 <= offset < 2**64:
             return (
                 {
                     'error': (
-                        'Limit must be 1–50; offset must be zero or greater'
+                        'Limit must be 1–50; offset must be between '
+                        '0 and 18446744073709551615'
                     )
                 },
                 'application/json',
