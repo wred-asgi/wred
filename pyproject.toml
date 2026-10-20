@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 name = "wred"
 dynamic = ["version"]
 description = "An ultra-minimal ASGI framework for JSON APIs."
-readme = "docs/README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]

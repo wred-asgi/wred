@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    tests.test_wred
-    ~~~~~~~~~~~~~~~
+    tests
+    ~~~~~
 
     Exercise Wred request handling and ASGI response behavior.
 
