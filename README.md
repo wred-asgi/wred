@@ -196,17 +196,7 @@ the server without Wred attempting a second response.
 
 ## Performance
 
-Since there isn't much to Wred, it's really fast. What it lacks in features it gains in speed.
-
-Wred running on Peregrine 1.1.7 with 8 workers, ASGI, and uvloop
-achieved up to 646,979 requests/second, with a median of 622,399 requests/second
-across four runs on October 18, 2026. Average p99 latency across runs was 3.92 ms, with
-zero socket errors or non-success responses. Testing used `wrk` with 4 threads, 256 concurrent
-connections, and 20-second runs after a 5-second warmup for each run, using Python 3.14.4
-on a Dell XPS 13 9350 with an Intel Core Ultra 7 256V (8 cores,
-up to 4.8 GHz), running Ubuntu 26.04.1 LTS (Linux 6.17.0-1023-oem, x86-64).
-
-With respect to the lack of features mentioned above, Wred is meant to be bare bones, it's really
-an experiment of how minimal and fast an ASGI framework can be without being raw ASGI. For an
-actual micro framework with lifespan, streaming, multipart and more check out [MicroPie](https://harrisonerd.com/micropie).
-
+Wred 0.6 ranks 6th out of 47 Python entries at 64 concurrent connections in the independent
+[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python),
+**with only bare ASGI/WSGI server applications ahead of it** at that concurrency.
+It handles roughly 100,000 requests/second across all three tested concurrency levels (64, 256, and 512).
