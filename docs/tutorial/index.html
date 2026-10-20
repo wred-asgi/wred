@@ -50,7 +50,7 @@
     <main id="main">
       <h1>Wred documentation</h1>
       <p class="lead">Build an app, look up an API, or find out which component owns the configuration. A tutorial and reference for a framework that still fits in one Python file.</p>
-<aside class="note"><p>These docs cover Wred 0.10, where <code>request.query</code> is a cached property. Upgrading from 0.9? Remove the parentheses; see <a href="releases.html#version-010">migration notes</a>.</p></aside>
+<aside class="note"><p>These docs cover Wred 0.11. Response tuples now preserve their explicit content type for dict and list bodies; see the <a href="releases.html#version-011">0.11 release notes</a>. Upgrading from 0.9? <code>request.query</code> became a cached property in 0.10; remove the parentheses as shown in the <a href="releases.html#version-010">migration notes</a>.</p></aside>
 
       <h2 id="reference">Look something up</h2>
 <p>Following a lesson is useful. Finding the exact method signature without rereading a lesson is also useful. We have bravely decided to provide both.</p>
@@ -62,7 +62,7 @@
   <li><a href="faq.html">Frequently asked questions</a> — the usual surprises, catalogued.</li>
   <li><a href="security.html">Deployment boundaries</a> — body limits, proxy trust, credentials, and input handling.</li>
   <li><a href="development.html">Development &amp; contributing</a> — checks, source changes, docs, and bug reports.</li>
-  <li><a href="releases.html">Release notes &amp; upgrading</a> — the 0.10 query-property change and the optional server extra.</li>
+  <li><a href="releases.html">Release notes &amp; upgrading</a> — the 0.11 tuple response fix, the 0.10 query-property change, and the optional server extra.</li>
 </ul>
 <p>The search box looks through these pages and the tutorial. Everything runs locally in the browser; no search account, index service, or ritual sacrifice required.</p>
 <h2 id="what-you-build">The app we’re actually building</h2>
@@ -84,7 +84,7 @@ python -m pip install -e &#x27;.[server]&#x27; starlette itsdangerous
 cd docs/tutorial/examples
 weft first_api:app</code></pre></div><p>The notebook chapters use the repository root instead. Each chapter says which directory and dependencies it expects, because scavenger hunts are a terrible package manager.</p>
       <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="first-api.html">Your first API →</a></nav>
-      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+      <footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
     </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

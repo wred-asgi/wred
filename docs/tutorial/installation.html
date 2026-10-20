@@ -50,7 +50,7 @@
     <main id="main">
 <h1>Installation &amp; quick start</h1>
 <p class="lead">Pick a Python, make a virtualenv, and install the parts you need. Your dependency tree is allowed to have sunlight reaching the bottom.</p>
-<aside class="note"><p>These docs cover Wred 0.10, where <code>request.query</code> is a cached property. Upgrading from 0.9? Remove the parentheses; see <a href="releases.html#version-010">migration notes</a>.</p></aside>
+<aside class="note"><p>These docs cover Wred 0.11. Response tuples now preserve their explicit content type for dict and list bodies; see the <a href="releases.html#version-011">0.11 release notes</a>. Upgrading from 0.9? <code>request.query</code> became a cached property in 0.10; remove the parentheses as shown in the <a href="releases.html#version-010">migration notes</a>.</p></aside>
 <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#requirements">Requirements</a></li><li><a href="#virtualenv">Create an isolated environment</a></li><li><a href="#quick-start">Save an app and run it</a></li><li><a href="#extras">Choose your dependencies</a></li><li><a href="#another-server">Use another ASGI server</a></li><li><a href="#checkout">Work from a checkout</a></li><li><a href="#versions">Check what you installed</a></li></ul></nav>
 <h2 id="requirements">Requirements</h2>
 
@@ -97,7 +97,7 @@ python -m pip install -e &#x27;.[server]&#x27; pymongo servestatic</code></pre><
 <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>python -m pip show wred
 python -c &#x27;import wred; print(wred.__file__)&#x27;</code></pre></div><p>The second command helps detect a local <code>wred.py</code> shadowing the installed module. Python imports the file it finds, not the file you had strong feelings about. See <a href="releases.html">release notes and upgrading</a> for the 0.9 server-extra change.</p>
 <nav class="chapter-nav" aria-label="Related documentation"><a href="index.html">← Documentation overview</a><a href="api-reference.html">API reference →</a></nav>
-<footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+<footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
 </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

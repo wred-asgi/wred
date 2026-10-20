@@ -52,12 +52,12 @@
       <p class="lead">Install a server, return a dict, and make a request. This is the part where a larger framework might ask you to generate a project, three directories, and a personal philosophy.</p>
       <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#install">Make a small project</a></li><li><a href="#routes">Give it some routes</a></li><li><a href="#run">Run it and ask it something</a></li><li><a href="#validation">Accept JSON without accepting absolutely anything</a></li><li><a href="#response-shapes">Choose the response you mean</a></li></ul></nav>
       <h2 id="install">Make a small project</h2>
-    <p>Start in a new directory and install Wred 0.10 or newer. The <code>server</code> extra installs Weft.</p>
+    <p>Start in a new directory and install Wred 0.11 or newer. The <code>server</code> extra installs Weft.</p>
     <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>mkdir hello-wred
 cd hello-wred
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install 'wred[server]>=0.10'</code></pre></div><h2 id="routes">Give it some routes</h2><p>Save this as <code>first_api.py</code>. An async handler receives a Wred request. Returning a dict or list produces JSON with status 200.</p><div class="code-block"><div class="code-heading"><span class="code-label">first_api.py</span><span class="code-actions"><a href="examples/first_api.py" download>Download</a></span></div><pre tabindex="0"><code>from wred import App
+python -m pip install 'wred[server]>=0.11'</code></pre></div><h2 id="routes">Give it some routes</h2><p>Save this as <code>first_api.py</code>. An async handler receives a Wred request. Returning a dict or list produces JSON with status 200.</p><div class="code-block"><div class="code-heading"><span class="code-label">first_api.py</span><span class="code-actions"><a href="examples/first_api.py" download>Download</a></span></div><pre tabindex="0"><code>from wred import App
 
 app = App()
 
@@ -102,7 +102,7 @@ async def echo(request):
   -H &#x27;Content-Type: application/json&#x27; \
   -d &#x27;{&quot;title&quot;:&quot;My first note&quot;}&#x27;</code></pre></div><p>The response body is <code>{"title":"My first note"}</code>. A JSON array, missing title, or invalid JSON gets 400. Schema validation is your application’s decision; a few explicit checks are perfectly respectable.</p><h2 id="response-shapes">Choose the response you mean</h2><div class="table-wrap"><table><thead><tr><th scope="col">Return value</th><th scope="col">Result</th></tr></thead><tbody><tr><td><code>{"ok": True}</code></td><td>JSON, 200</td></tr><tr><td><code>{"id": "n1"}, "application/json", 201</code></td><td>JSON, 201</td></tr><tr><td><code>b"", "text/plain", 303, [("Location", "/")]</code></td><td>Redirect</td></tr><tr><td><code>b"", "application/json", 204</code></td><td>Empty response</td></tr><tr><td>A callable ASGI response</td><td>The response object sends its own messages</td></tr></tbody></table></div><p>Custom tuple bodies can be bytes, dicts, or lists. Dicts and lists are JSON-encoded while preserving the tuple’s explicit content type. Exceptions propagate to the server or your middleware; Wred doesn’t convert them into a reassuringly vague success.</p>
       <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="index.html">← Build something with Wred.</a><a href="notebook.html">Run the notebook →</a></nav>
-      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+      <footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
     </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

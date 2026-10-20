@@ -50,11 +50,11 @@
     <main id="main">
 <h1>API reference</h1>
 <p class="lead">The signatures, return values, and edge cases in one place. The API is small enough that this page does not require its own executive summary.</p>
-<aside class="note"><p>These docs cover Wred 0.10, where <code>request.query</code> is a cached property. Upgrading from 0.9? Remove the parentheses; see <a href="releases.html#version-010">migration notes</a>.</p></aside>
+<aside class="note"><p>These docs cover Wred 0.11. Response tuples now preserve their explicit content type for dict and list bodies; see the <a href="releases.html#version-011">0.11 release notes</a>. Upgrading from 0.9? <code>request.query</code> became a cached property in 0.10; remove the parentheses as shown in the <a href="releases.html#version-010">migration notes</a>.</p></aside>
 <nav class="on-page" aria-label="On this page"><p>On this page</p><ul><li><a href="#imports">Imports and scope</a></li><li><a href="#app">App()</a></li><li><a href="#route">App.route(path, methods=("GET",))</a></li><li><a href="#mounted-paths">Mounted paths and root_path</a></li><li><a href="#request">Request(scope, receive, send)</a></li><li><a href="#headers">request.headers → dict[str, str]</a></li><li><a href="#query">request.query → dict[str, str]</a></li><li><a href="#body">await request.body() → bytes</a></li><li><a href="#json">await request.json() → Any</a></li><li><a href="#responses">Handler return values</a></li><li><a href="#low-level">Low-level App helpers</a></li></ul></nav>
 <h2 id="imports">Imports and scope</h2>
 <div class="code-block"><div class="code-heading"><span class="code-label">Python</span><span class="code-actions"></span></div><pre tabindex="0"><code>from wred import App, Request</code></pre></div>
-<p>This reference describes the implementation in <code>wred.py</code> for Wred 0.10. Handlers normally use <code>App</code> and the request they receive. The low-level dispatch helpers are documented at the end for readers working directly with ASGI.</p>
+<p>This reference describes the implementation in <code>wred.py</code> for Wred 0.11. Handlers normally use <code>App</code> and the request they receive. The low-level dispatch helpers are documented at the end for readers working directly with ASGI.</p>
 <p>Related guides: <a href="first-api.html">first API</a>, <a href="errors.html">errors and troubleshooting</a>, <a href="asgi-middleware.html">ASGI middleware</a>.</p>
 
 <h2 id="app">App()</h2>
@@ -109,6 +109,9 @@ if not isinstance(data, dict):
 <div class="table-wrap"><table><thead><tr><th scope="col">Return</th><th scope="col">Body / content type / status</th></tr></thead><tbody><tr><td><code>dict</code> or <code>list</code></td><td>Serialized by orjson; <code>application/json</code>; 200.</td></tr><tr><td><code>bytes</code></td><td>Sent directly; <code>application/octet-stream</code>; 200.</td></tr><tr><td><code>(body, content_type, status)</code></td><td>Explicit media type and status. A dict/list body is JSON-encoded while preserving the supplied content type.</td></tr><tr><td><code>(body, content_type, status, headers)</code></td><td>As above, with an iterable of string header pairs.</td></tr><tr><td>Callable ASGI response</td><td>Wred awaits <code>response(scope, receive, send)</code>; the response owns the outgoing messages.</td></tr></tbody></table></div><div class="code-block"><div class="code-heading"><span class="code-label">Alternative returns inside handlers</span><span class="code-actions"></span></div><pre tabindex="0"><code># JSON creation response with a Location header.
 return {&#x27;id&#x27;: &#x27;n1&#x27;}, &#x27;application/json&#x27;, 201, [(&#x27;Location&#x27;, &#x27;/notes/n1&#x27;)]
 
+# JSON with an explicit media type (preserved since Wred 0.11).
+return {&#x27;error&#x27;: &#x27;Invalid input&#x27;}, &#x27;application/problem+json&#x27;, 400
+
 # Empty deletion response.
 return b&#x27;&#x27;, &#x27;application/json&#x27;, 204
 
@@ -128,7 +131,7 @@ return &#x27;Hello&#x27;.encode(&#x27;utf-8&#x27;), &#x27;text/plain; charset=ut
 <div class="code-block"><div class="code-heading"><span class="code-label">Python</span><span class="code-actions"></span></div><pre tabindex="0"><code>app.match_path((&#x27;&#x27;, &#x27;users&#x27;, &#x27;{user_id}&#x27;), [&#x27;&#x27;, &#x27;users&#x27;, &#x27;42&#x27;])
 # {&#x27;user_id&#x27;: &#x27;42&#x27;}</code></pre></div><p><code>app.routes</code> and <code>app.pattern_routes</code> hold dispatch tables. Register handlers with <code>route()</code> rather than editing these tables directly.</p>
 <nav class="chapter-nav" aria-label="Related documentation"><a href="index.html">← Documentation overview</a><a href="errors.html">Errors &amp; troubleshooting →</a></nav>
-<footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+<footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
 </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

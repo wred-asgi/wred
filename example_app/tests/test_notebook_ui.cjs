@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { test } = require('node:test');
+const { join } = require('node:path');
 const vm = require('node:vm');
 
-const source = readFileSync('example_app/static/app.js', 'utf8');
+const source = readFileSync(join(__dirname, '../static/app.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 async function notebook() {

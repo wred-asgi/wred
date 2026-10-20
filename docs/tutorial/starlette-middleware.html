@@ -117,7 +117,7 @@ COOKIE_SECURE=0 weft session_app:app</code></pre></div><p>In a second terminal:<
 curl -sS -b visits.cookies -c visits.cookies http://127.0.0.1:8000/visits
 # {&quot;visits&quot;:2}</code></pre></div><p>Keep the secret stable across workers and restarts. Session data is signed, not encrypted: store a harmless preference or counter, not a password. Wred reads it through <code>request.scope["session"]</code>. There is no <code>request.session</code> property waiting to be discovered.</p><p>See <a href="https://github.com/Kludex/starlette/blob/main/starlette/middleware/sessions.py">Starlette’s session implementation</a>.</p>
       <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="data-and-auth.html">← Notes, accounts, and ownership</a><a href="asgi-middleware.html">Write a little ASGI middleware →</a></nav>
-      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+      <footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
     </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

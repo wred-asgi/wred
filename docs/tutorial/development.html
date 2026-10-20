@@ -61,11 +61,13 @@ python -m pip install -e &#x27;.[server]&#x27; pymongo servestatic</code></pre><
 
 <p>The repository uses Python’s <code>unittest</code> runner. From the repository root:</p>
 <div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>python -m unittest tests.test_wred
-python -m unittest tests.test_example_app
-python -m unittest discover -s tests</code></pre></div>
+python -m unittest example_app.tests.test_example_app
+python -m unittest discover -s tests
+python -m unittest discover -s example_app/tests
+node --test example_app/tests/test_notebook_ui.cjs</code></pre></div>
 <p>The core suite exercises request parsing, routes, responses, mounted paths, and protocol boundaries. The example-app suite needs PyMongo and ServeStatic installed. The database integration suite also imports those dependencies and is skipped unless its MongoDB URI is set.</p>
 <p>Use a disposable MongoDB instance for integration checks:</p>
-<div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>WRED_TEST_MONGODB_URI=&#x27;mongodb://127.0.0.1:27017&#x27;   python -m unittest tests.test_notebook</code></pre></div><p>The integration suite creates uniquely named databases beginning with <code>wred_test_</code> and drops them during cleanup. The supplied credentials need permission for that work. Use a test database server, not production with a hopeful expression.</p>
+<div class="code-block"><div class="code-heading"><span class="code-label">Terminal</span><span class="code-actions"></span></div><pre tabindex="0"><code>WRED_TEST_MONGODB_URI=&#x27;mongodb://127.0.0.1:27017&#x27;   python -m unittest example_app.tests.test_notebook</code></pre></div><p>The integration suite creates uniquely named databases beginning with <code>wred_test_</code> and drops them during cleanup. The supplied credentials need permission for that work. Use a test database server, not production with a hopeful expression.</p>
 <h2 id="changes">Keep changes reviewable</h2>
 
 <p>Start with the observable behavior you want to change. Keep Wred’s core focused on HTTP routing and responses; middleware and application modules are good homes for optional behavior. Explain any API or compatibility changes in the accompanying docs.</p>
@@ -90,7 +92,7 @@ git diff --check</code></pre></div><p>Pages and navigation still work without Ja
 <p>Wred is distributed under the BSD 3-Clause license. The complete terms are in the repository’s <code>LICENSE</code> file; retain that file and the applicable notices when redistributing. This paragraph is a signpost to the license, not a replacement for it.</p>
 
 <nav class="chapter-nav" aria-label="Related documentation"><a href="index.html">← Documentation overview</a><a href="api-reference.html">API reference →</a></nav>
-<footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+<footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
 </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

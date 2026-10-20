@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    tests.test_example_app
-    ~~~~~~~~~~~~~~~~~~~~~~
+    example_app.tests.test_example_app
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Exercise example application construction and resource ownership.
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import orjson
 
-from tests.test_wred import call_app
+from example_app.tests.helpers import call_app
 
 
 class AppFactoryTests(unittest.IsolatedAsyncioTestCase):
@@ -85,7 +85,7 @@ with patch('pymongo.AsyncMongoClient', side_effect=RuntimeError(
 """
         result = subprocess.run(
             [sys.executable, '-c', script],
-            cwd=Path(__file__).resolve().parents[1],
+            cwd=Path(__file__).resolve().parents[2],
             capture_output=True,
             timeout=10,
         )

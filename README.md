@@ -9,6 +9,11 @@ The [documentation](https://harrisonerd.com/wred/tutorial/index.html) includes a
 guides, and a tutorial covering the notebook app, middleware, frontend serving,
 and deployment with Caddy or Nginx.
 
+This README covers Wred 0.11. The main change is that response tuples preserve
+an explicit content type even when the body is a dict or list. See the
+[0.11 release notes](https://harrisonerd.com/wred/tutorial/releases.html#version-011)
+for upgrade guidance.
+
 ## What you get
 
 - Async handlers, explicit HTTP methods, and fixed or parameterized routes.
@@ -71,7 +76,7 @@ the ASGI server so clients cannot bypass the proxy's protections.
 
 ## Routes
 
-Handlers are async and receive a request. Methods default to `['GET']`;
+Handlers are async and receive a request. Methods default to `('GET',)`;
 path parameters are strings passed by keyword.
 
 ```python
@@ -108,7 +113,7 @@ with pretty much every ASGI application you can think of.
 
 ## Requests
 
-In Wred 0.10, `request.query` is a cached property, matching `request.headers`.
+Since Wred 0.10, `request.query` is a cached property, matching `request.headers`.
 Wred 0.9 uses `request.query()`; remove the parentheses when upgrading.
 
 * `request.path` -> Path without the query string
@@ -138,7 +143,9 @@ signed, not encrypted. Wred doesn't supply a session property.
 Dicts and lists become `application/json` with HTTP 200. Bytes default to
 `application/octet-stream`. Custom responses use `(body, content_type, status[, headers])`.
 Tuple bodies must be bytes, dicts, or lists. Dicts and lists are JSON-encoded while
-preserving the tuple's explicit content type.
+preserving the tuple's explicit content type. This is fixed in 0.11; 0.10
+replaced it with `application/json`. If you relied on that replacement, set
+`application/json` explicitly in your tuple.
 Headers are string pairs; repeated `Set-Cookie` headers are supported.
 
 * `{'hello': 'world'}` -> JSON object, 200

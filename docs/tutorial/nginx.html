@@ -94,7 +94,7 @@ limit_req_status 429;</code></pre></div><p>These numbers are illustrative, not a
     <div class="code-block"><div class="code-heading"><span class="code-label">Nginx · streaming location additions</span><span class="code-actions"></span></div><pre tabindex="0"><code>proxy_buffering off;
 proxy_read_timeout 300s;</code></pre></div><p>Choose a timeout longer than the interval between stream messages. Don’t disable buffering globally just because one endpoint needs it; ordinary responses have done nothing to deserve being dragged into this.</p>
       <nav class="chapter-nav" aria-label="Previous and next chapters"><a href="caddy.html">← Put Caddy in front</a><a href="operations.html">Keep it running →</a></nav>
-      <footer>Written for Wred 0.10. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
+      <footer>Written for Wred 0.11. See <a href="releases.html">release notes</a> for changes and migration guidance.</footer>
     </main>
   </div>
   <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    tests.test_notebook
-    ~~~~~~~~~~~~~~~~~~~
+    example_app.tests.test_notebook
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Exercise the example's API contracts through the actual Wred ASGI app.
 
@@ -24,7 +24,7 @@ import orjson
 
 from example_app import auth, rate_limit
 from example_app.app import create_app
-from tests.test_wred import call_app
+from example_app.tests.helpers import call_app
 
 mongodb_uri = os.environ.get('WRED_TEST_MONGODB_URI')
 
@@ -206,7 +206,7 @@ import asyncio
 import sys
 import orjson
 from example_app.asgi import app
-from tests.test_wred import call_app
+from example_app.tests.helpers import call_app
 
 
 async def main():
@@ -267,7 +267,7 @@ asyncio.run(main())
                 'MONGODB_URI': mongodb_uri,
                 'MONGODB_DATABASE': self.database_name,
             },
-            cwd=Path(__file__).resolve().parents[1],
+            cwd=Path(__file__).resolve().parents[2],
             capture_output=True,
             timeout=20,
         )
