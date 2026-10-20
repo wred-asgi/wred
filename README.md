@@ -1,4 +1,4 @@
-# Wred
+[![Logo](https://patx.gitman.io/wred/wred-logo.png)](https://harrisonerd.com/wred)
 
 [Wred](https://harrisonerd.com/wred) A tiny and fast Python/ASGI backend JavaScript web apps. Pronounced "red".
 
