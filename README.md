@@ -1,6 +1,6 @@
 [![Logo](https://patx.gitman.io/wred/wred-logo.png)](https://harrisonerd.com/wred)
 
-[Wred](https://harrisonerd.com/wred) A tiny and fast Python/ASGI backend JavaScript web apps. Pronounced "red".
+[Wred](https://harrisonerd.com/wred) A tiny and fast Python/ASGI backend for JavaScript web apps. Pronounced "red".
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
@@ -61,6 +61,12 @@ or [Cloudflare](https://developers.cloudflare.com/waf/). Configure request-body
 size limits, HTTPS, timeouts, and rate limiting at that layer. Wred buffers request
 bodies in memory and does not impose a body-size limit. Restrict direct access to
 the ASGI server so clients cannot bypass the proxy's protections.
+
+See [`example_app.py`](example_app.py) for validation with msgspec, JWT
+authentication with PyJWT, server-sent events with
+[sse-starlette](https://github.com/sysid/sse-starlette), and frontend serving
+with [ServeStatic](https://archmonger.github.io/ServeStatic/4.4.0/servestatic-asgi/).
+Setup instructions are in its module docstring; run it with `weft example_app:app`.
 
 ## Routes
 
