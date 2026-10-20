@@ -4,16 +4,6 @@
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
-The [documentation](https://harrisonerd.com/wred/tutorial/index.html) includes an
-[API reference](https://harrisonerd.com/wred/tutorial/api-reference.html), installation and configuration
-guides, and a tutorial covering the notebook app, middleware, frontend serving,
-and deployment with Caddy or Nginx.
-
-This README covers Wred 0.11. The main change is that response tuples preserve
-an explicit content type even when the body is a dict or list. See the
-[0.11 release notes](https://harrisonerd.com/wred/tutorial/releases.html#version-011)
-for upgrade guidance.
-
 ## What you get
 
 - Async handlers, explicit HTTP methods, and fixed or parameterized routes.
@@ -28,10 +18,8 @@ Auth, sessions, databases, validation schemas, templates, form or multipart
 parsing, CORS, CSRF protection, rate limiting, dependency injection, generated
 docs, background jobs, WebSockets, static file serving, or built-in streaming.
 
-Use existing ASGI middleware for CORS, authentication, sessions, or compression.
-[Starlette's middleware](https://starlette.dev/middleware/#using-middleware-in-other-frameworks)
-can wrap Wred directly for example... Your app chooses its dependencies; Wred doesn't need to
-know they exist.
+You can use existing ASGI middleware of your choice, your app chooses its dependencies;
+Wred doesn't need to know they exist.
 
 ## Install and run
 
@@ -135,8 +123,6 @@ Invalid UTF-8 in raw or percent-encoded query bytes raises `UnicodeDecodeError`.
 JSON can be an object, array, or scalar. Validate inputs and convert types yourself.
 
 Authentication middleware can populate the scope for handlers to check.
-Starlette's SessionMiddleware uses `request.scope['session']`; its cookies are
-signed, not encrypted. Wred doesn't supply a session property.
 
 ## Responses
 
@@ -159,7 +145,6 @@ Headers are string pairs; repeated `Set-Cookie` headers are supported.
 You can also return a callable ASGI response object to let it manage status, headers, and
 body through `(scope, receive, send)`. Reuse external response classes for
 streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
-For example Starlette's StreamingResponse can be returned directly in a Wred handler.
 
 ## Serving the frontend
 
@@ -173,27 +158,6 @@ URLs such as `fetch('/api/hello')` without CORS configuration. If you use
 separate origins, configure CORS in middleware and account for cookie and
 credential rules. Opening HTML directly with `file://` does not avoid those
 browser restrictions.
-
-Starlette's [`FileResponse`](https://starlette.dev/responses/#fileresponse)
-can be returned directly from a Wred handler to stream a particular file,
-including support for HTTP range requests. Install Starlette in your application
-with `pip install starlette`, then use it for a known file path:
-
-```python
-from pathlib import Path
-from starlette.responses import FileResponse
-
-FRONTEND_ROOT = Path(__file__).resolve().parent / 'frontend'
-
-@app.route('/')
-async def index(request):
-    return FileResponse(FRONTEND_ROOT / 'index.html')
-```
-
-For a directory of files, Starlette's
-[`StaticFiles`](https://starlette.dev/staticfiles/) can be mounted alongside
-Wred using an external ASGI router, as described under [Routes](#routes).
-The notebook example uses ServeStatic; neither library is required by Wred.
 
 ## Errors
 
