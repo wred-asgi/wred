@@ -96,7 +96,7 @@ size limits, HTTPS, timeouts, and rate limiting at that layer. Wred buffers requ
 bodies in memory and does not impose a body-size limit. Restrict direct access to
 the ASGI server so clients cannot bypass the proxy's protections.
 
-See [`example_app.py`](example_app.py) for validation with msgspec, JWT
+See [`example_app.py`](https://gitman.io/patx/wred/src/example_app.py) for validation with msgspec, JWT
 authentication with PyJWT, server-sent events with
 [sse-starlette](https://github.com/sysid/sse-starlette), and frontend serving
 with [ServeStatic](https://archmonger.github.io/ServeStatic/4.4.0/servestatic-asgi/).
