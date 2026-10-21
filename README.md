@@ -4,13 +4,15 @@
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
+Wred keeps the framework small and the component choices yours. Build fast APIs
+with the validation, authentication, middleware, and ASGI server that fit your app.
+
 ## What you get
 
 - Async handlers, explicit HTTP methods, and fixed or parameterized routes.
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses and custom response tuples.
 - Callable ASGI response support and routing relative to mounted paths.
-- Depends on only `orjson`. You can use any ASGI server you wish.
 
 ## What you don't get
 
@@ -20,6 +22,38 @@ docs, background jobs, WebSockets, static file serving, or built-in streaming.
 
 You can use existing ASGI middleware of your choice, your app chooses its dependencies;
 Wred doesn't need to know they exist.
+
+## Your components, your call
+
+Use Pydantic for validation, msgspec for decoding and validation together, or
+something else entirely. Call your authentication library directly. Choose your
+database tools and ASGI middleware independently. Wred's only required dependency
+is `orjson`; the rest of the stack belongs to your application.
+
+Those choices stay replaceable. Switch from Pydantic to msgspec and you can remove
+Pydantic from your app's dependencies. Your authentication code doesn't need to
+change just because your validator did.
+
+You connect the components and decide how to handle their errors. That means a
+little more explicit wiring, with control over what runs on each request and what
+gets installed. Validation and API schema generation are yours to arrange too.
+
+## Performance
+
+Wred keeps the path from request to response short: route the request, await your
+handler, and send the response. JSON responses use `orjson`, while request headers
+and query parameters are parsed only when accessed and cached for reuse.
+
+Wred delivers high throughput even for endpoints that validate input or verify
+tokens. You can keep your existing libraries or choose faster components where
+they help. For example, msgspec can decode and validate the raw request body in
+one step, avoiding an intermediate dictionary.
+Component freedom gives you control over both dependencies and performance.
+
+Wred 0.6 ranks 6th out of 47 Python entries at 64 concurrent connections in the independent
+[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python),
+**with only bare ASGI/WSGI server applications ahead of it** at that concurrency.
+It handles roughly 100,000 requests/second across all three tested concurrency levels (64, 256, and 512).
 
 ## Install and run
 
@@ -193,10 +227,3 @@ async def create_item(request):
 Validate inputs before returning a streaming response. Once streaming starts,
 errors cannot replace its status or body; an unhandled exception propagates to
 the server without Wred attempting a second response.
-
-## Performance
-
-Wred 0.6 ranks 6th out of 47 Python entries at 64 concurrent connections in the independent
-[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python),
-**with only bare ASGI/WSGI server applications ahead of it** at that concurrency.
-It handles roughly 100,000 requests/second across all three tested concurrency levels (64, 256, and 512).
