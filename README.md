@@ -1,6 +1,6 @@
 [![Logo](https://patx.gitman.io/wred/wred-logo.png)](https://harrisonerd.com/wred)
 
-[Wred](https://harrisonerd.com/wred) A tiny and fast Python/ASGI backend for JavaScript web apps. Pronounced "red".
+[Wred](https://harrisonerd.com/wred) A fast, orjson-powered ASGI router for JSON APIs. Pronounced "red".
 
 Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
 
