@@ -1,43 +1,27 @@
 [![Logo](https://patx.gitman.io/wred/wred-logo.png)](https://harrisonerd.com/wred)
 
-[Wred](https://harrisonerd.com/wred) is an HTTP-only ASGI router for JSON APIs,
-with `orjson` for JSON serialization and parsing. Pronounced "red".
+[Wred](https://harrisonerd.com/wred) is a Python ASGI router for JSON APIs.
+It uses `orjson` to read and write JSON. Pronounced "red".
 
-## Features
+Handlers are async functions. They receive a request and return a dict, list,
+bytes, response tuple, or callable ASGI response. Routes support path parameters
+and explicit HTTP methods. The request object provides headers, query parameters,
+cached body reads, and JSON parsing. Response tuples let you set the status,
+content type, and headers; callable ASGI responses can handle streaming.
 
-- Async handlers, explicit HTTP methods, and fixed or parameterized routes.
-- Headers, query parameters, cached body reads, and JSON parsing.
-- JSON responses and custom response tuples.
-- Callable ASGI response support and routing relative to mounted paths.
+Bring your own validation, authentication, and database libraries. Call them
+directly from your handlers and handle their errors there, or in middleware.
+Wred does not configure them for you or require particular libraries. `orjson`
+is its only required dependency; you also need an ASGI server to run the app.
 
-## Scope and dependencies
-
-Wred does not include authentication, sessions, database integration, validation schemas, templates, form or multipart
-parsing, CORS, CSRF protection, rate limiting, dependency injection, generated
-docs, background jobs, WebSockets, static file serving, or built-in streaming.
-
-The only required dependency is `orjson`. Applications integrate validation,
-authentication, and database libraries directly and can wrap Wred with ASGI
-middleware. For example, a handler can use Pydantic to validate parsed JSON or
-msgspec to decode and validate raw request bytes. Application code is responsible
-for invoking these libraries, handling their errors, and configuring API schema
-generation if needed.
-
-## Performance
-
-Fixed routes use dictionary lookups; parameterized routes are checked in
-registration order. After matching a route, Wred awaits the handler and sends
-its response. JSON responses use `orjson`. Request headers and query parameters
-are parsed on first access and cached; request body bytes are cached after reading.
-
-Application throughput depends on the ASGI server, route patterns, payloads, and
-handler work, including validation, authentication, and database access.
-External results are available in the
-[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python).
+Sessions, CORS, CSRF protection, and rate limiting need middleware or other
+application setup. Wred has no built-in form or multipart parsing, templates,
+dependency injection, generated API docs, background jobs, static file serving,
+or streaming helpers. It handles HTTP only, with no WebSocket support.
 
 ## Install and run
 
-Python 3.11+. For a new project:
+Requires Python 3.11 or later.
 
 ```bash
 pip install wred
@@ -62,7 +46,7 @@ pip install 'wred[server]'
 weft app:app
 ```
 
-Other ASGI servers can also run the application.
+You can use another ASGI server instead of Weft.
 
 Open <http://127.0.0.1:8000>. Wred is HTTP-only.
 Unsupported protocols raise `RuntimeError` without sending HTTP messages,
@@ -112,8 +96,8 @@ the original scope keep the full incoming path.
 
 Wred does not provide a mount method. To serve another ASGI app alongside Wred,
 use an external router and mount the other app at `/example` and Wred at `/`,
-with the catch-all last. The containing application is responsible for composition
-and lifecycle management.
+with the catch-all last. Handle ASGI lifespan events in the outer app;
+Wred only accepts HTTP scopes.
 
 ## Requests
 
@@ -136,8 +120,8 @@ async def search(request):
 
 Query parameters preserve blank values; repeated keys keep the last value.
 Invalid UTF-8 in raw or percent-encoded query bytes raises `UnicodeDecodeError`.
-JSON can be an object, array, or scalar. Handlers are responsible for input
-validation and type conversion.
+JSON can be an object, array, or scalar. Wred does not validate it or convert
+field types.
 
 Authentication middleware can populate the scope for handlers to check.
 
@@ -159,16 +143,15 @@ Headers are string pairs; repeated `Set-Cookie` headers are supported.
 * `b'', 'text/plain', 303, [('Location', '/')]` -> Redirect
 * `b'', 'application/json', 204` -> No content
 
-You can also return a callable ASGI response object to let it manage status, headers, and
-body through `(scope, receive, send)`. Reuse external response classes for
-streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
+If a handler returns a callable, Wred calls it with `(scope, receive, send)`.
+This lets you use ASGI response classes from other libraries for streaming,
+downloads, or SSE.
 
 ## Serving the frontend
 
-Frontend assets must be served separately, through a web server, static hosting
-service, or another ASGI application. For example, use Caddy or Nginx as a web
-server, Vite during development, or ServeStatic or Starlette for ASGI static file
-serving.
+Wred does not serve static files. Use a web server such as Caddy or Nginx,
+a static host, or an ASGI app such as ServeStatic. A frontend development server
+such as Vite can proxy API requests to Wred during development.
 
 Serving the frontend and API from one origin lets browser code use relative
 URLs such as `fetch('/api/hello')` without CORS configuration. If you use
@@ -202,5 +185,14 @@ async def create_item(request):
 ```
 
 Validate inputs before returning a streaming response. Once streaming starts,
-errors cannot replace its status or body; an unhandled exception propagates to
-the server without Wred attempting a second response.
+you cannot change the status or replace the body with an error response.
+Unhandled exceptions reach the server; Wred does not send a second response.
+
+## Performance
+
+Fixed routes use dictionary lookups. Parameterized routes are matched in
+registration order. Headers and query parameters are parsed on first access
+and cached. Reading the body buffers it in memory; later reads reuse those bytes.
+
+See the [Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python)
+for benchmark results.
