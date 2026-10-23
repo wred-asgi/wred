@@ -1,59 +1,39 @@
 [![Logo](https://patx.gitman.io/wred/wred-logo.png)](https://harrisonerd.com/wred)
 
-[Wred](https://harrisonerd.com/wred) A fast, orjson-powered ASGI router for JSON APIs. Pronounced "red".
+[Wred](https://harrisonerd.com/wred) is an HTTP-only ASGI router for JSON APIs,
+with `orjson` for JSON serialization and parsing. Pronounced "red".
 
-Your API needs to return some JSON. It probably doesn't need a goddamn cathedral.
-
-Wred keeps the framework small and the component choices yours. Build fast APIs
-with the validation, authentication, middleware, and ASGI server that fit your app.
-
-## What you get
+## Features
 
 - Async handlers, explicit HTTP methods, and fixed or parameterized routes.
 - Headers, query parameters, cached body reads, and JSON parsing.
 - JSON responses and custom response tuples.
 - Callable ASGI response support and routing relative to mounted paths.
 
-## What you don't get
+## Scope and dependencies
 
-Auth, sessions, databases, validation schemas, templates, form or multipart
+Wred does not include authentication, sessions, database integration, validation schemas, templates, form or multipart
 parsing, CORS, CSRF protection, rate limiting, dependency injection, generated
 docs, background jobs, WebSockets, static file serving, or built-in streaming.
 
-You can use existing ASGI middleware of your choice, your app chooses its dependencies;
-Wred doesn't need to know they exist.
-
-## Your components, your call
-
-Use Pydantic for validation, msgspec for decoding and validation together, or
-something else entirely. Call your authentication library directly. Choose your
-database tools and ASGI middleware independently. Wred's only required dependency
-is `orjson`; the rest of the stack belongs to your application.
-
-Those choices stay replaceable. Switch from Pydantic to msgspec and you can remove
-Pydantic from your app's dependencies. Your authentication code doesn't need to
-change just because your validator did.
-
-You connect the components and decide how to handle their errors. That means a
-little more explicit wiring, with control over what runs on each request and what
-gets installed. Validation and API schema generation are yours to arrange too.
+The only required dependency is `orjson`. Applications integrate validation,
+authentication, and database libraries directly and can wrap Wred with ASGI
+middleware. For example, a handler can use Pydantic to validate parsed JSON or
+msgspec to decode and validate raw request bytes. Application code is responsible
+for invoking these libraries, handling their errors, and configuring API schema
+generation if needed.
 
 ## Performance
 
-Wred keeps the path from request to response short: route the request, await your
-handler, and send the response. JSON responses use `orjson`, while request headers
-and query parameters are parsed only when accessed and cached for reuse.
+Fixed routes use dictionary lookups; parameterized routes are checked in
+registration order. After matching a route, Wred awaits the handler and sends
+its response. JSON responses use `orjson`. Request headers and query parameters
+are parsed on first access and cached; request body bytes are cached after reading.
 
-Wred delivers high throughput even for endpoints that validate input or verify
-tokens. You can keep your existing libraries or choose faster components where
-they help. For example, msgspec can decode and validate the raw request body in
-one step, avoiding an intermediate dictionary.
-Component freedom gives you control over both dependencies and performance.
-
-Wred 0.6 ranks 6th out of 47 Python entries at 64 concurrent connections in the independent
-[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python),
-**with only bare ASGI/WSGI server applications ahead of it** at that concurrency.
-It handles roughly 100,000 requests/second across all three tested concurrency levels (64, 256, and 512).
+Application throughput depends on the ASGI server, route patterns, payloads, and
+handler work, including validation, authentication, and database access.
+External results are available in the
+[Web Frameworks Benchmark](https://web-frameworks-benchmark.vercel.app/result?l=python).
 
 ## Install and run
 
@@ -82,7 +62,7 @@ pip install 'wred[server]'
 weft app:app
 ```
 
-You can also install and use any other ASGI server you like.
+Other ASGI servers can also run the application.
 
 Open <http://127.0.0.1:8000>. Wred is HTTP-only.
 Unsupported protocols raise `RuntimeError` without sending HTTP messages,
@@ -97,9 +77,7 @@ bodies in memory and does not impose a body-size limit. Restrict direct access t
 the ASGI server so clients cannot bypass the proxy's protections.
 
 See [`example_app.py`](https://gitman.io/patx/wred/src/example_app.py) for validation with msgspec, JWT
-authentication with PyJWT, server-sent events with
-[sse-starlette](https://github.com/sysid/sse-starlette), and frontend serving
-with [ServeStatic](https://archmonger.github.io/ServeStatic/4.4.0/servestatic-asgi/).
+authentication with PyJWT, server-sent events with `sse-starlette`, and frontend serving with `ServeStatic`.
 Setup instructions are in its module docstring; run it with `weft example_app:app`.
 
 ## Routes
@@ -132,12 +110,10 @@ If you mount your Wred application at `/api`, a `/users` route in that app
 would become `/api/users`. Routing respects `root_path`; `request.path` and
 the original scope keep the full incoming path.
 
-Wred deliberately leaves out a mount method to keep the core focused on small
-HTTP APIs. To serve another ASGI app alongside Wred, use an external router such
-as [Starlette's `Router` and `Mount`](https://starlette.dev/routing/): mount the
-other app at `/example` and Wred at `/`, with the catch-all last. This keeps
-application composition and lifecycle decisions outside Wred's core. This works
-with pretty much every ASGI application you can think of.
+Wred does not provide a mount method. To serve another ASGI app alongside Wred,
+use an external router and mount the other app at `/example` and Wred at `/`,
+with the catch-all last. The containing application is responsible for composition
+and lifecycle management.
 
 ## Requests
 
@@ -160,7 +136,8 @@ async def search(request):
 
 Query parameters preserve blank values; repeated keys keep the last value.
 Invalid UTF-8 in raw or percent-encoded query bytes raises `UnicodeDecodeError`.
-JSON can be an object, array, or scalar. Validate inputs and convert types yourself.
+JSON can be an object, array, or scalar. Handlers are responsible for input
+validation and type conversion.
 
 Authentication middleware can populate the scope for handlers to check.
 
@@ -188,10 +165,10 @@ streaming, downloads, or SSE. Use ASGI middleware for behavior across routes.
 
 ## Serving the frontend
 
-Use whatever you want to serve your frontend. Wred is an ASGI API backend;
-frontend hosting and build tools are your application's choice. Caddy, Nginx,
-Vite, ServeStatic, and Starlette are some options. Other ASGI middleware, web
-servers, frontend dev servers, CDNs, and static hosting services work too.
+Frontend assets must be served separately, through a web server, static hosting
+service, or another ASGI application. For example, use Caddy or Nginx as a web
+server, Vite during development, or ServeStatic or Starlette for ASGI static file
+serving.
 
 Serving the frontend and API from one origin lets browser code use relative
 URLs such as `fetch('/api/hello')` without CORS configuration. If you use
