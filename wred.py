@@ -25,7 +25,7 @@ class Request:
         """Decode and cache headers on first access."""
         headers: dict[str, str] = {}
         for k, v in self.scope.get('headers', []):
-            k, v = k.decode('latin-1').lower(), v.decode('latin-1')
+            k, v = k.decode('ascii').lower(), v.decode('latin-1')
             headers[k] = headers[k] + '; ' + v if k == 'cookie' and k in headers else v
         return headers
 
