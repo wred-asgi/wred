@@ -135,7 +135,8 @@ for JSON bodies. Include `Content-Type` when wanted, or use an empty list to sen
 no headers. Headers are string pairs, with names lowercased and encoded for ASGI;
 order and repeated headers such as `Set-Cookie` are preserved.
 
-This replaces the old `(body, content_type, status[, headers])` format. When
+Wred 0.12 replaces the old `(body, content_type, status[, headers])` format with
+`(body, headers, status)`. When
 upgrading, move explicit content types into the headers list; four-item tuples
 are no longer accepted.
 
