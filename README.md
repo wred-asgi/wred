@@ -76,7 +76,7 @@ async def get_user(request, user_id):
 
 @app.route('/users', methods=['POST'])
 async def create_user(request):
-    return await request.json(), 'application/json', 201
+    return await request.json(), [('Content-Type', 'application/json')], 201
 
 @app.route('/users/{user_id}', methods=['PUT', 'PATCH'])
 async def update_user(request, user_id):
@@ -128,20 +128,24 @@ Authentication middleware can populate the scope for handlers to check.
 ## Responses
 
 Dicts and lists become `application/json` with HTTP 200. Bytes default to
-`application/octet-stream`. Custom responses use `(body, content_type, status[, headers])`.
-Tuple bodies must be bytes, dicts, or lists. Dicts and lists are JSON-encoded while
-preserving the tuple's explicit content type. This is fixed in 0.11; 0.10
-replaced it with `application/json`. If you relied on that replacement, set
-`application/json` explicitly in your tuple.
-Headers are string pairs; repeated `Set-Cookie` headers are supported.
+`application/octet-stream`. Custom responses use exactly `(body, headers, status)`.
+Tuple bodies must be bytes, dicts, or lists. Dicts and lists are JSON-encoded.
+Explicit tuples send only the supplied headers; no content type is added, even
+for JSON bodies. Include `Content-Type` when wanted, or use an empty list to send
+no headers. Headers are string pairs, with names lowercased and encoded for ASGI;
+order and repeated headers such as `Set-Cookie` are preserved.
+
+This replaces the old `(body, content_type, status[, headers])` format. When
+upgrading, move explicit content types into the headers list; four-item tuples
+are no longer accepted.
 
 * `{'hello': 'world'}` -> JSON object, 200
 * `[{'id': 1}, {'id': 2}]` -> JSON array, 200
-* `b'hello', 'text/plain', 200` -> Text response
-* `{'id': 3}, 'application/json', 201, [('Location', '/items/3')]` -> Created resource with a custom header
-* `{'error': 'Invalid'}, 'application/problem+json', 400` -> JSON with a custom media type
-* `b'', 'text/plain', 303, [('Location', '/')]` -> Redirect
-* `b'', 'application/json', 204` -> No content
+* `b'hello', [('Content-Type', 'text/plain')], 200` -> Text response
+* `{'id': 3}, [('Content-Type', 'application/json'), ('Location', '/items/3')], 201` -> Created resource with a custom header
+* `{'error': 'Invalid'}, [('Content-Type', 'application/problem+json')], 400` -> JSON with a custom media type
+* `b'', [('Location', '/')], 303` -> Redirect
+* `b'', [], 204` -> No content
 
 If a handler returns a callable, Wred calls it with `(scope, receive, send)`.
 This lets you use ASGI response classes from other libraries for streaming,
@@ -178,10 +182,10 @@ async def create_item(request):
     try:
         data = await request.json()
     except orjson.JSONDecodeError:
-        return {'error': 'Invalid JSON body'}, 'application/json', 400
+        return {'error': 'Invalid JSON body'}, [('Content-Type', 'application/json')], 400
     if not isinstance(data, dict) or not data.get('title'):
-        return {'error': 'A title is required'}, 'application/json', 400
-    return data, 'application/json', 201
+        return {'error': 'A title is required'}, [('Content-Type', 'application/json')], 400
+    return data, [('Content-Type', 'application/json')], 201
 ```
 
 Validate inputs before returning a streaming response. Once streaming starts,

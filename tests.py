@@ -200,14 +200,14 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
 
         @app.route('/{name}/created')
         async def created(request, name):
-            return {'name': name}, 'application/json', 201
+            return {'name': name}, [('Content-Type', 'application/json')], 201
 
         @app.route('/input', methods=['POST'])
         async def input_data(request):
             try:
                 return await request.json()
             except orjson.JSONDecodeError:
-                return {'error': 'Invalid JSON body'}, 'application/json', 400
+                return {'error': 'Invalid JSON body'}, [('Content-Type', 'application/json')], 400
 
         cases = [
             ('GET', '/alice/created', b'', 201, b'{"name":"alice"}'),
@@ -263,7 +263,8 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('GET', '/search', b'', b'q=%FF', None, UnicodeDecodeError),
             ('GET', '/search', b'', b'%FF=value', None, UnicodeDecodeError),
             ('GET', '/invalid', b'', b'', 'unsupported response', TypeError),
-            ('GET', '/invalid', b'', b'', (b'bad', 'text/plain'), ValueError),
+            ('GET', '/invalid', b'', b'', (b'bad', []), ValueError),
+            ('GET', '/invalid', b'', b'', (b'bad', [], 200, []), ValueError),
         ]
         for method, path, body, query_string, response, error in cases:
             with self.subTest(
@@ -618,15 +619,23 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
 
         cases = [
             (b'\x00\xff', 200, b'application/octet-stream', b'\x00\xff', []),
+            ((b'', [], 204), 204, None, b'', []),
             (
-                (b'<p>Hello</p>', 'text/html; charset=utf-8', 202),
+                ({'id': 3}, [('Location', '/items/3')], 201),
+                201,
+                None,
+                b'{"id":3}',
+                [(b'location', b'/items/3')],
+            ),
+            (
+                (b'<p>Hello</p>', [('Content-Type', 'text/html; charset=utf-8')], 202),
                 202,
                 b'text/html; charset=utf-8',
                 b'<p>Hello</p>',
                 [],
             ),
             (
-                ([], 'text/plain', 201),
+                ([], [('content-type', 'text/plain')], 201),
                 201,
                 b'text/plain',
                 b'[]',
@@ -635,12 +644,12 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             (
                 (
                     {'error': 'Unauthorized'},
-                    'application/problem+json',
-                    401,
                     [
+                        ('CONTENT-TYPE', 'application/problem+json'),
                         ('WWW-Authenticate', 'Bearer'),
                         ('Cache-Control', 'no-store'),
                     ],
+                    401,
                 ),
                 401,
                 b'application/problem+json',
@@ -653,14 +662,14 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             (
                 (
                     b'',
-                    'text/plain',
-                    303,
                     [
+                        ('Content-Type', 'text/plain'),
                         ('Location', '/ui'),
                         ('X-Label', 'caf\u00e9'),
                         ('Set-Cookie', 'a=1; Secure'),
                         ('Set-Cookie', 'b=2; Secure'),
                     ],
+                    303,
                 ),
                 303,
                 b'text/plain',
@@ -673,9 +682,9 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 ],
             ),
             (
-                ([], 'application/json', 200, []),
+                ([], [], 200),
                 200,
-                b'application/json',
+                None,
                 b'[]',
                 [],
             ),
@@ -699,8 +708,8 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                         {
                             'type': 'http.response.start',
                             'status': status,
-                            'headers': [(b'content-type', content_type)]
-                            + headers,
+                            'headers': ([(b'content-type', content_type)]
+                                        if content_type is not None else []) + headers,
                         },
                         {'type': 'http.response.body', 'body': body},
                     ],

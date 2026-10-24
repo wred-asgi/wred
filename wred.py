@@ -5,7 +5,7 @@ ASGI-compatible web services. It prioritizes simplicity and performance over all
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.11'
+__version__ = '0.12'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -87,20 +87,19 @@ class App:
             await self.send_response(send, response)
 
     async def send_response(self, send: Callable[[dict[str, Any]], Awaitable[None]], response: Any, status: int = 200) -> None:
-        """Send JSON or (body, content_type, status[, headers]) with string header pairs."""
-        body, content_type, headers = response, 'application/octet-stream', []
+        """Send JSON or (body, headers, status) with string header pairs."""
         if isinstance(response, tuple):
-            body, content_type, status = response[:3]
-            if len(response) == 4:
-                headers = [(n.lower().encode('ascii'), v.encode('latin-1')) for n, v in response[3]]
-        elif isinstance(body, (dict, list)):
-            content_type = 'application/json'
-        if isinstance(body, (dict, list)):
-            body = orjson.dumps(body)
-        elif not isinstance(body, bytes):
+            response, headers, status = response
+            headers = [(n.lower().encode('ascii'), v.encode('latin-1')) for n, v in headers]
+        else:
+            content_type = b'application/json' if isinstance(response, (dict, list)) else b'application/octet-stream'
+            headers = [(b'content-type', content_type)]
+        if isinstance(response, (dict, list)):
+            response = orjson.dumps(response)
+        elif not isinstance(response, bytes):
             raise TypeError("Response must be dict, list, bytes, or tuple")
-        await send({'type': 'http.response.start', 'status': status, 'headers': [(b'content-type', content_type.encode('latin-1'))] + headers})
-        await send({'type': 'http.response.body', 'body': body})
+        await send({'type': 'http.response.start', 'status': status, 'headers': headers})
+        await send({'type': 'http.response.body', 'body': response})
 
     def match_path(self, pattern: tuple[str, ...], parts: list[str]) -> dict[str, str] | None:
         """Match normalized paths and extract parameters."""

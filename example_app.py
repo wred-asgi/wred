@@ -76,7 +76,7 @@ async def greet(request):
         data = msgspec.json.decode(await request.body(), type=Greeting)
 
     except msgspec.DecodeError:
-        return {'detail': 'Invalid greeting'}, 'application/json', 422
+        return {'detail': 'Invalid greeting'}, [('Content-Type', 'application/json')], 422
 
     return {'message': f'Hello, {data.name}!'}
 
@@ -87,9 +87,10 @@ async def me(request):
         user = verified_user(request.headers.get('authorization'))
 
     except jwt.InvalidTokenError:
-        return {'detail': 'Not authenticated'}, 'application/json', 401, [
+        return {'detail': 'Not authenticated'}, [
+            ('Content-Type', 'application/json'),
             ('WWW-Authenticate', 'Bearer'),
-        ]
+        ], 401
 
     return {'user': user}
 
