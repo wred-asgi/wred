@@ -159,7 +159,7 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(scope, original)
 
-    async def test_dictionary_and_list_responses_are_json(self):
+    async def test_serializable_responses_are_json(self):
         app = App()
 
         @app.route('/')
@@ -173,6 +173,11 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ({'hello': 'world'}, b'{"hello":"world"}'),
             ([{'id': 1}, {'id': 2}], b'[{"id":1},{"id":2}]'),
             ([], b'[]'),
+            (42, b'42'),
+            (1.5, b'1.5'),
+            ('hello', b'"hello"'),
+            (True, b'true'),
+            (None, b'null'),
         ]
         for value, body in cases:
             with self.subTest(value=value):
@@ -262,7 +267,8 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
             ('GET', '/search', b'', b'\xff', None, UnicodeDecodeError),
             ('GET', '/search', b'', b'q=%FF', None, UnicodeDecodeError),
             ('GET', '/search', b'', b'%FF=value', None, UnicodeDecodeError),
-            ('GET', '/invalid', b'', b'', 'unsupported response', TypeError),
+            ('GET', '/invalid', b'', b'', object(), TypeError),
+            ('GET', '/invalid', b'', b'', (object(), [], 200), TypeError),
             ('GET', '/invalid', b'', b'', (b'bad', []), ValueError),
             ('GET', '/invalid', b'', b'', (b'bad', [], 200, []), ValueError),
         ]
@@ -620,6 +626,11 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         cases = [
             (b'\x00\xff', 200, b'application/octet-stream', b'\x00\xff', []),
             ((b'', [], 204), 204, None, b'', []),
+            ((42, [('Content-Type', 'application/json')], 201), 201, b'application/json', b'42', []),
+            (('hello', [], 200), 200, None, b'"hello"', []),
+            ((True, [], 200), 200, None, b'true', []),
+            ((None, [], 200), 200, None, b'null', []),
+            (((1, 2), [], 200), 200, None, b'[1,2]', []),
             (
                 ({'id': 3}, [('Location', '/items/3')], 201),
                 201,

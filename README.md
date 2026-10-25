@@ -3,8 +3,8 @@
 [Wred](https://harrisonerd.com/wred) is a Python ASGI router for JSON APIs.
 It uses `orjson` to read and write JSON. Pronounced "red".
 
-Handlers are async functions. They receive a request and return a dict, list,
-bytes, response tuple, or callable ASGI response. Routes support path parameters
+Handlers are async functions. They receive a request and return a JSON-serializable
+value, bytes, response tuple, or callable ASGI response. Routes support path parameters
 and explicit HTTP methods. The request object provides headers, query parameters,
 cached body reads, and JSON parsing. Response tuples let you set the status,
 content type, and headers; callable ASGI responses can handle streaming.
@@ -106,7 +106,7 @@ Wred 0.9 uses `request.query()`; remove the parentheses when upgrading.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Header dict decoded and cached on first access, with lowercase names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
+* `request.headers` -> Header dict decoded and cached on first access, with lowercase ASCII names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query` -> Dict of string keys and values, parsed and cached on first access.
 * `await request.body()` -> Cached body raw bytes
@@ -127,30 +127,50 @@ Authentication middleware can populate the scope for handlers to check.
 
 ## Responses
 
-Dicts and lists become `application/json` with HTTP 200. Bytes default to
-`application/octet-stream`. Custom responses use exactly `(body, headers, status)`.
-Tuple bodies must be bytes, dicts, or lists. Dicts and lists are JSON-encoded.
+Wred handles return values in three ways:
+
+* A callable is awaited with `(scope, receive, send)` as an ASGI response.
+* A tuple sets the body, headers, and status: `(body, headers, status)`.
+* Any other value gets HTTP 200. Bytes are sent unchanged with
+  `application/octet-stream`; other values are serialized with `orjson.dumps`
+  and get `application/json`.
+
+Since Wred 0.13, both plain returns and tuple bodies accept any value supported
+by `orjson.dumps`, including strings, numbers, booleans, and `None`. Strings
+become quoted JSON strings; use bytes for raw text. Returning `None`, including
+by falling off the end of a handler, sends JSON `null` with HTTP 200.
+
 Explicit tuples send only the supplied headers; no content type is added, even
-for JSON bodies. Include `Content-Type` when wanted, or use an empty list to send
-no headers. Headers are string pairs, with names lowercased and encoded for ASGI;
-order and repeated headers such as `Set-Cookie` are preserved.
+for JSON bodies. Bytes pass through unchanged; all other tuple bodies are
+JSON-encoded. Headers are string pairs: names are lowercased and ASCII-encoded,
+and values are Latin-1-encoded. Order and repeated headers such as `Set-Cookie`
+are preserved. Use `[]` to send no headers.
 
-Wred 0.12 replaces the old `(body, content_type, status[, headers])` format with
-`(body, headers, status)`. When
-upgrading, move explicit content types into the headers list; four-item tuples
-are no longer accepted.
+| Handler return | Response |
+| --- | --- |
+| `{'hello': 'world'}` | JSON object, 200 |
+| `[{'id': 1}, {'id': 2}]` | JSON array, 200 |
+| `42` | JSON number `42`, 200 |
+| `'hello'` | JSON string `"hello"`, 200 |
+| `True` | JSON boolean `true`, 200 |
+| `None` | JSON `null`, 200 |
+| `b'hello'` | Raw bytes, `application/octet-stream`, 200 |
+| `(b'hello', [('Content-Type', 'text/plain')], 200)` | Raw text, 200 |
+| `({'id': 3}, [('Content-Type', 'application/json'), ('Location', '/items/3')], 201)` | JSON with a location header, 201 |
+| `({'error': 'Invalid'}, [('Content-Type', 'application/problem+json')], 400)` | JSON with a custom media type, 400 |
+| `(b'', [('Location', '/')], 303)` | Redirect with an empty body |
+| `(b'', [], 204)` | No content, no headers |
 
-* `{'hello': 'world'}` -> JSON object, 200
-* `[{'id': 1}, {'id': 2}]` -> JSON array, 200
-* `b'hello', [('Content-Type', 'text/plain')], 200` -> Text response
-* `{'id': 3}, [('Content-Type', 'application/json'), ('Location', '/items/3')], 201` -> Created resource with a custom header
-* `{'error': 'Invalid'}, [('Content-Type', 'application/problem+json')], 400` -> JSON with a custom media type
-* `b'', [('Location', '/')], 303` -> Redirect
-* `b'', [], 204` -> No content
+Tuples are always interpreted as explicit responses. To return a tuple as JSON
+array data, use a list or place it inside a response tuple, such as
+`((1, 2), [('Content-Type', 'application/json')], 200)`.
 
-If a handler returns a callable, Wred calls it with `(scope, receive, send)`.
-This lets you use ASGI response classes from other libraries for streaming,
-downloads, or SSE.
+Wred 0.12 replaced `(body, content_type, status[, headers])` with
+`(body, headers, status)`. When upgrading, move explicit content types into the
+headers list; four-item response tuples are no longer accepted.
+
+Callable responses let you use ASGI response classes from other libraries for
+streaming, downloads, or SSE. They control their own headers and body messages.
 
 ## Serving the frontend
 
@@ -166,11 +186,21 @@ browser restrictions.
 
 ## Errors
 
-Exceptions propagate to your ASGI server or middleware. Malformed JSON raises
-`orjson.JSONDecodeError`, invalid UTF-8 query bytes (raw or percent-encoded) raise `UnicodeDecodeError`,
-client disconnects during body reads raise `ConnectionError`, and unsupported
-response types raise `TypeError`. Wred does not turn exceptions into responses.
-Malformed response tuples can raise `ValueError` during unpacking.
+Exceptions propagate to your ASGI server or middleware. Wred does not turn
+exceptions into responses.
+
+* Malformed JSON raises `orjson.JSONDecodeError`.
+* Invalid UTF-8 query bytes (raw or percent-encoded) and non-ASCII request
+  header names raise `UnicodeDecodeError` when those properties are accessed.
+* Client disconnects during body reads raise `ConnectionError`.
+* Bodies that `orjson.dumps` cannot serialize raise `orjson.JSONEncodeError`
+  (a `TypeError` subclass).
+* Response tuples with fewer or more than three items raise `ValueError`.
+* Non-ASCII response header names or values outside Latin-1 raise
+  `UnicodeEncodeError`.
+
+For ordinary and tuple responses, serialization and header encoding finish
+before Wred sends the response start message.
 
 Return response tuples for expected application errors. Catch parsing errors
 in your handler when you want a JSON 400 response:

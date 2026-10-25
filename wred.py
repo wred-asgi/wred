@@ -5,7 +5,7 @@ ASGI-compatible web services. It prioritizes simplicity and performance over all
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.12'
+__version__ = '0.13'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -92,12 +92,10 @@ class App:
             response, headers, status = response
             headers = [(n.lower().encode('ascii'), v.encode('latin-1')) for n, v in headers]
         else:
-            content_type = b'application/json' if isinstance(response, (dict, list)) else b'application/octet-stream'
+            content_type = b'application/octet-stream' if isinstance(response, bytes) else b'application/json'
             headers = [(b'content-type', content_type)]
-        if isinstance(response, (dict, list)):
+        if not isinstance(response, bytes):
             response = orjson.dumps(response)
-        elif not isinstance(response, bytes):
-            raise TypeError("Response must be dict, list, bytes, or tuple")
         await send({'type': 'http.response.start', 'status': status, 'headers': headers})
         await send({'type': 'http.response.body', 'body': response})
 
