@@ -21,7 +21,7 @@ or streaming helpers. It handles HTTP only, with no WebSocket support.
 
 ## Install and run
 
-Requires Python 3.11 or later.
+Install Wred from [PyPI](https://pypi.org/project/wred/). Requires Python 3.11 or later.
 
 ```bash
 pip install wred
