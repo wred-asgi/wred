@@ -146,20 +146,19 @@ JSON-encoded. Headers are string pairs: names are lowercased and ASCII-encoded,
 and values are Latin-1-encoded. Order and repeated headers such as `Set-Cookie`
 are preserved. Use `[]` to send no headers.
 
-| Handler return | Response |
-| --- | --- |
-| `{'hello': 'world'}` | JSON object, 200 |
-| `[{'id': 1}, {'id': 2}]` | JSON array, 200 |
-| `42` | JSON number `42`, 200 |
-| `'hello'` | JSON string `"hello"`, 200 |
-| `True` | JSON boolean `true`, 200 |
-| `None` | JSON `null`, 200 |
-| `b'hello'` | Raw bytes, `application/octet-stream`, 200 |
-| `(b'hello', [('Content-Type', 'text/plain')], 200)` | Raw text, 200 |
-| `({'id': 3}, [('Content-Type', 'application/json'), ('Location', '/items/3')], 201)` | JSON with a location header, 201 |
-| `({'error': 'Invalid'}, [('Content-Type', 'application/problem+json')], 400)` | JSON with a custom media type, 400 |
-| `(b'', [('Location', '/')], 303)` | Redirect with an empty body |
-| `(b'', [], 204)` | No content, no headers |
+
+`{'hello': 'world'}` -> JSON object, 200 |
+`[{'id': 1}, {'id': 2}]` -> JSON array, 200 |
+`42` -> JSON number `42`, 200 |
+`'hello'` -> JSON string `"hello"`, 200 |
+`True` -> JSON boolean `true`, 200 |
+`None` -> JSON `null`, 200 |
+`b'hello'` -> Raw bytes, `application/octet-stream`, 200 
+`(b'hello', [('Content-Type', 'text/plain')], 200)` -> Raw text, 200
+`({'id': 3}, [('Content-Type', 'application/json'), ('Location', '/items/3')], 201)` -> JSON with a location header, 201
+`({'error': 'Invalid'}, [('Content-Type', 'application/problem+json')], 400)` -> JSON with a custom media type, 400
+`(b'', [('Location', '/')], 303)` -> Redirect with an empty body
+`(b'', [], 204)` -> No content, no headers
 
 Tuples are always interpreted as explicit responses. To return a tuple as JSON
 array data, use a list or place it inside a response tuple, such as

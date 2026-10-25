@@ -117,4 +117,3 @@ class App:
             target.setdefault(key, {}).update({m.upper(): handler for m in methods})
             return handler
         return decorator
-
