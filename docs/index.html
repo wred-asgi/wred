@@ -4,50 +4,92 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Wred is a tiny Python/ASGI backend for HTML and JavaScript apps.">
-  <title>Wred — A super fast Python microframework for building JSON APIs</title>
+  <meta name="description" content="Wred is a fast, orjson-powered ASGI router for JSON APIs.">
+  <title>Wred — A fast ASGI router for JSON APIs</title>
   <style>
-    :root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; color: #702a36; background: #fff8f8; }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
-    main { width: 100%; }
-    .intro { text-align: left; padding: 12px 24px 16px; }
-    h1 { margin: 0; }
-    h1 img { display: block; max-width:50%; height: auto; margin: auto; }
-    .intro p { margin: 8px auto 0; max-width: 760px; font-size: 24px; line-height: 1.4; }
-    a { color: inherit; text-underline-offset: 4px; }
-    a:hover { color: #c92432; }
-    a:focus-visible { outline: 2px solid #c92432; outline-offset: 5px; }
-    footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; padding: 16px 24px; font-size: 15px; }
-    .examples { max-width: 800px; margin: 0 auto; padding: 0 24px; }
-    .examples pre { margin-bottom: 12px; background: #fff0f0; border: 1px solid #dc8994; border-radius: 6px; }
-    pre { margin: 0; padding: 12px 16px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: #702a36; font: 16px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
-    .install-command { white-space: pre; overflow-wrap: normal; overflow-x: auto; }
-    code { font: inherit; }
-    @media (max-width: 700px) {
-      .intro { padding-left: 12px; padding-right: 12px; }
-      .intro p { font-size: 17px; }
-      h1 img { max-width: 350px; }
+    :root {
+      --red: #cb2034;
+    }
+
+    body {
+      max-width: 720px;
+      margin: 10vh auto;
+      padding: 0 24px;
+      font-family: monospace;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      max-width: 560px;
+      font-size: 30px;
+      line-height: 1.4;
+      font-weight: normal;
+      margin: 0;
+    }
+
+    h1 img {
+      height: 64px;
+      vertical-align: baseline;
+      margin-block: -20px;
+      margin-right: -12px;
+    }
+
+    a {
+      color: inherit;
+      text-underline-offset: 3px;
+    }
+
+    pre {
+      font: inherit;
+      line-height: 1.6;
+      margin: 0;
+      overflow-x: auto;
+    }
+
+    .example {
+      margin-top: 25px;
+    }
+
+    .install {
+      margin-bottom: 50px;
+      color: black;
+      font-weight: bold;
+    }
+
+    .keyword {
+      color: var(--red);
+      font-weight: bold;
+    }
+
+    .decorator {
+      color: var(--red);
+      font-style: italic;
+    }
+
+    .string {
+      color: var(--red);
     }
   </style>
 </head>
 <body>
-  <main>
-    <header class="intro">
-      <h1><img src="https://patx.gitman.io/wred/wred-logo.png" alt="Wred logo"></h1>
-      <p>A fast, orjson-powered ASGI router for JSON APIs. Read the docs and view the source <a target="_blank" href="https://gitman.io/patx/wred">here</a>.</p>
-    </header>
-    <section class="examples" aria-label="Installation and example">
-      <pre class="install-command" aria-label="Install"><code>pip install wred</code></pre>
-      <pre aria-label="app.py"><code>from wred import App
+  <h1>
+    <img src="https://patx.gitman.io/wred/wred-logo.png" alt="Wred">
+    is a fast, orjson-powered ASGI router for JSON APIs.
+    Read the docs and view the source
+    <a href="https://gitman.io/patx/wred">here</a>.
+  </h1>
+
+  <div class="example">
+    <pre class="install">$ pip install wred</pre>
+
+    <pre><code><span class="keyword">from</span> wred <span class="keyword">import</span> App
 
 app = App()
 
-@app.route("/")
-async def index(request):
-    return {"hello": "world"}
-</code></pre>
-    </section>
-  </main>
+<span class="decorator">@app.route</span>(<span class="string">"/"</span>)
+<span class="keyword">async def</span> index(request):
+    <span class="keyword">return</span> {<span class="string">"hello"</span>: <span class="string">"world"</span>}</code></pre>
+  </div>
 </body>
 </html>
