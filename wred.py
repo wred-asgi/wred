@@ -1,7 +1,5 @@
 """
 Wred: An ultra micro ASGI API framework.
-Wred is designed for lightweight JSON APIs, offering a minimalistic way to build
-ASGI-compatible web services. It prioritizes simplicity and performance over all.
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
