@@ -19,18 +19,6 @@ application setup. Wred has no built-in form or multipart parsing, templates,
 dependency injection, generated API docs, background jobs, static file serving,
 or streaming helpers. It handles HTTP only, with no WebSocket support.
 
-## Extensions
-
-Current extensions include [wred-auth](https://gitman.io/patx/wred-auth),
-[wred-ratelimit](https://gitman.io/patx/wred-ratelimit), and
-[wred-pydantic](https://gitman.io/patx/wred-pydantic).
-
-Build extensions as async handler decorators. Place them below `@app.route(...)`
-so Wred registers the wrapped handler.
-
-Community extensions are encouraged and welcome. Submit yours for consideration;
-we'll list good ones here.
-
 ## Install and run
 
 Install Wred from [PyPI](https://pypi.org/project/wred/). Requires Python 3.11 or later.
@@ -187,8 +175,25 @@ Wred 0.12 replaced `(body, content_type, status[, headers])` with
 `(body, headers, status)`. When upgrading, move explicit content types into the
 headers list; four-item response tuples are no longer accepted.
 
-Callable responses let you use ASGI response classes from other libraries for
-streaming, downloads, or SSE. They control their own headers and body messages.
+### ASGI response callables
+
+Return an ASGI response callable directly to use streaming, server-sent events
+(SSE), file downloads, or other HTTP response features from another library.
+Wred awaits it with the original `(scope, receive, send)` for that request.
+The callable controls the status, headers, and body messages; Wred does not
+JSON-encode its output or buffer its response body.
+
+Return the response object itself, rather than placing it in a response tuple.
+A plain generator is not an ASGI response; wrap it in a streaming response class.
+You can also return your own `async def response(scope, receive, send)` callable
+that sends messages following the [ASGI HTTP specification](https://asgi.readthedocs.io/en/latest/specs/www.html).
+
+If the handler reads the request body first, Wred does not replay it to the
+returned callable's `receive`; pass any data it needs explicitly. Validate inputs
+before starting a stream, since the status and headers cannot be changed once
+sent. Keep resources needed during streaming open inside the generator and close
+them in `finally` blocks or context managers. Wred still handles HTTP only;
+returning a callable does not add WebSocket or lifespan support.
 
 ## Serving the frontend
 
@@ -240,6 +245,24 @@ async def create_item(request):
 Validate inputs before returning a streaming response. Once streaming starts,
 you cannot change the status or replace the body with an error response.
 Unhandled exceptions reach the server; Wred does not send a second response.
+
+## Extensions
+
+Current extensions include [wred-auth](https://gitman.io/patx/wred-auth),
+[wred-ratelimit](https://gitman.io/patx/wred-ratelimit),
+[wred-pydantic](https://gitman.io/patx/wred-pydantic), and
+[wred-lifespan](https://gitman.io/patx/wred-lifespan).
+
+Community extensions can use either approach without changing Wred's core:
+
+* **Handler decorators**, like auth, ratelimit, and pydantic, wrap async handlers
+  to inspect requests or process responses. Use `functools.wraps`, forward
+  `*args, **kwargs`, and place them below `@app.route(...)`.
+* **ASGI application wrappers**, like lifespan, handle application-level features
+  such as startup and shutdown, then forward HTTP requests to Wred.
+
+Community extensions are encouraged and welcome. Submit yours for consideration;
+we'll list good ones here.
 
 ## Performance
 
