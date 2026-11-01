@@ -60,7 +60,7 @@ size limits, HTTPS, timeouts, and rate limiting at that layer. Wred buffers requ
 bodies in memory and does not impose a body-size limit. Restrict direct access to
 the ASGI server so clients cannot bypass the proxy's protections.
 
-See [`example_app.py`](https://gitman.io/patx/wred/src/example_app.py) for validation with msgspec, JWT
+See [`example_app.py`](https://github.com/wred-asgi/wred/blob/main/example_app.py) for validation with msgspec, JWT
 authentication with PyJWT, server-sent events with `sse-starlette`, and frontend serving with `ServeStatic`.
 Setup instructions are in its module docstring; run it with `weft example_app:app`.
 
@@ -250,10 +250,10 @@ Unhandled exceptions reach the server; Wred does not send a second response.
 
 ## Extensions
 
-Current extensions include [wred-auth](https://gitman.io/patx/wred-auth),
-[wred-ratelimit](https://gitman.io/patx/wred-ratelimit),
-[wred-pydantic](https://gitman.io/patx/wred-pydantic), and
-[wred-lifespan](https://gitman.io/patx/wred-lifespan).
+Current extensions include [wred-auth](https://github.com/wred-asgi/wred-auth),
+[wred-ratelimit](https://github.com/wred-asgi/wred-ratelimit),
+[wred-pydantic](https://github.com/wred-asgi/wred-pydantic), and
+[wred-lifespan](https://github.com/wred-asgi/wred-lifespan).
 
 Community extensions can use either approach without changing Wred's core:
 
