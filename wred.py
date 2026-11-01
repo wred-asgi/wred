@@ -20,11 +20,11 @@ class Request:
 
     @cached_property
     def headers(self) -> dict[str, str]:
-        """Decode and cache headers on first access."""
+        """Decode and cache headers, joining duplicates with commas (semicolons for Cookie)."""
         headers: dict[str, str] = {}
         for k, v in self.scope.get('headers', []):
             k, v = k.decode('ascii').lower(), v.decode('latin-1')
-            headers[k] = headers[k] + '; ' + v if k == 'cookie' and k in headers else v
+            headers[k] = headers[k] + ('; ' if k == 'cookie' else ', ') + v if k in headers else v
         return headers
 
     @cached_property
