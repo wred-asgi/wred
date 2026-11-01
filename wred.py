@@ -3,7 +3,7 @@ Wred: An ultra micro ASGI API framework.
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.13'
+__version__ = '0.14'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -20,7 +20,7 @@ class Request:
 
     @cached_property
     def headers(self) -> dict[str, str]:
-        """Decode and cache headers, joining duplicates with commas (semicolons for Cookie)."""
+        """Decode and cache headers, joining duplicates."""
         headers: dict[str, str] = {}
         for k, v in self.scope.get('headers', []):
             k, v = k.decode('ascii').lower(), v.decode('latin-1')

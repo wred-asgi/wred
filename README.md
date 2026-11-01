@@ -86,6 +86,9 @@ async def update_user(request, user_id):
 Different methods can have separate handlers on the same path. Fixed routes
 win over dynamic routes for that method; dynamic routes follow registration
 order. Registering the same path and method again replaces its handler.
+
+Path parameters must occupy a whole path segment and cannot span slashes.
+
 Trailing slashes are ignored when registering and matching routes: `/users`
 and `/users/` use the same handler, without a redirect.
 Unmatched paths or methods return JSON 404. No automatic HEAD, OPTIONS, or 405.
@@ -106,11 +109,15 @@ Wred 0.9 uses `request.query()`; remove the parentheses when upgrading.
 
 * `request.path` -> Path without the query string
 * `request.method` -> HTTP method
-* `request.headers` -> Header dict decoded and cached on first access, with lowercase ASCII names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names keep their last value
+* `request.headers` -> Header dict decoded and cached on first access, with lowercase ASCII names and Latin-1 values; repeated Cookie fields join with `; `, other repeated names join with `, `
 * `request.scope` -> Original ASGI scope, including client, scheme, and middleware state
 * `request.query` -> Dict of string keys and values, parsed and cached on first access.
 * `await request.body()` -> Cached body raw bytes
 * `await request.json()` -> Parsed JSON body; an empty body becomes `{}`
+
+Since Wred 0.14, repeated request header values are joined with `, `, except
+Cookie fields, which join with `; `. Previously, other repeated names kept
+their last value.
 
 ```python
 @app.route('/search')
