@@ -19,6 +19,18 @@ application setup. Wred has no built-in form or multipart parsing, templates,
 dependency injection, generated API docs, background jobs, static file serving,
 or streaming helpers. It handles HTTP only, with no WebSocket support.
 
+## Extensions
+
+Current extensions include [wred-auth](https://gitman.io/patx/wred-auth),
+[wred-ratelimit](https://gitman.io/patx/wred-ratelimit), and
+[wred-pydantic](https://gitman.io/patx/wred-pydantic).
+
+Build extensions as async handler decorators. Place them below `@app.route(...)`
+so Wred registers the wrapped handler.
+
+Community extensions are encouraged and welcome. Submit yours for consideration;
+we'll list good ones here.
+
 ## Install and run
 
 Install Wred from [PyPI](https://pypi.org/project/wred/). Requires Python 3.11 or later.
