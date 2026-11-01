@@ -254,19 +254,12 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         async def input_data(request):
             return await request.json()
 
-        @app.route('/search')
-        async def search(request):
-            return request.query
-
         @app.route('/invalid')
         async def invalid(request):
             return response
 
         cases = [
             ('POST', '/input', b'{', b'', None, orjson.JSONDecodeError),
-            ('GET', '/search', b'', b'\xff', None, UnicodeDecodeError),
-            ('GET', '/search', b'', b'q=%FF', None, UnicodeDecodeError),
-            ('GET', '/search', b'', b'%FF=value', None, UnicodeDecodeError),
             ('GET', '/invalid', b'', b'', object(), TypeError),
             ('GET', '/invalid', b'', b'', (object(), [], 200), TypeError),
             ('GET', '/invalid', b'', b'', (b'bad', []), ValueError),
@@ -407,6 +400,10 @@ class WredTests(unittest.IsolatedAsyncioTestCase):
         cases = [
             (None, 200, {'params': {}, 'q': ''}),
             (b'', 200, {'params': {}, 'q': ''}),
+            (b'\xff', 200, {'params': {'�': ''}, 'q': ''}),
+            (b'q=\xff', 200, {'params': {'q': '�'}, 'q': '�'}),
+            (b'q=%FF', 200, {'params': {'q': '�'}, 'q': '�'}),
+            (b'%FF=value', 200, {'params': {'�': 'value'}, 'q': ''}),
             (
                 b'q=coffee+ideas&limit=20',
                 200,

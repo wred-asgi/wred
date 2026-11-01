@@ -3,7 +3,7 @@ Wred: An ultra micro ASGI API framework.
 Copyright (c) 2026, Harrison Erd.
 """
 __author__, __email__, __license__ = 'Harrison Erd', 'harrisonerd@gmail.com', 'BSD-3-Clause'
-__version__ = '0.14'
+__version__ = '0.15'
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -29,8 +29,8 @@ class Request:
 
     @cached_property
     def query(self) -> dict[str, str]:
-        """Parse and cache query parameters on first access; repeated keys keep their last value."""
-        return dict(parse_qsl(self.scope.get('query_string', b'').decode(), keep_blank_values=True, errors='strict'))
+        """Parse query parameters; invalid UTF-8 becomes U+FFFD; repeated keys keep their last value."""
+        return dict(parse_qsl(self.scope.get('query_string', b'').decode('utf-8', 'replace'), keep_blank_values=True))
 
     async def body(self) -> bytes:
         """Read the request body from the ASGI receive stream."""

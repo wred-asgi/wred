@@ -126,7 +126,9 @@ async def search(request):
 ```
 
 Query parameters preserve blank values; repeated keys keep the last value.
-Invalid UTF-8 in raw or percent-encoded query bytes raises `UnicodeDecodeError`.
+Since Wred 0.15, invalid UTF-8 in raw or percent-encoded query bytes is replaced
+with `�` (U+FFFD) in both keys and values instead of raising `UnicodeDecodeError`.
+For example, `?q=%FF` produces `{'q': '�'}`. Query parsing remains lazy and cached.
 JSON can be an object, array, or scalar. Wred does not validate it or convert
 field types.
 
@@ -213,8 +215,8 @@ Exceptions propagate to your ASGI server or middleware. Wred does not turn
 exceptions into responses.
 
 * Malformed JSON raises `orjson.JSONDecodeError`.
-* Invalid UTF-8 query bytes (raw or percent-encoded) and non-ASCII request
-  header names raise `UnicodeDecodeError` when those properties are accessed.
+* Non-ASCII request header names raise `UnicodeDecodeError` when
+  `request.headers` is accessed.
 * Client disconnects during body reads raise `ConnectionError`.
 * Bodies that `orjson.dumps` cannot serialize raise `orjson.JSONEncodeError`
   (a `TypeError` subclass).
