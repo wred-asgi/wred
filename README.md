@@ -250,21 +250,13 @@ Unhandled exceptions reach the server; Wred does not send a second response.
 
 ## Extensions
 
-Current extensions include [wred-auth](https://github.com/wred-asgi/wred-auth),
-[wred-ratelimit](https://github.com/wred-asgi/wred-ratelimit),
-[wred-pydantic](https://github.com/wred-asgi/wred-pydantic), and
-[wred-lifespan](https://github.com/wred-asgi/wred-lifespan).
-
-Community extensions can use either approach without changing Wred's core:
-
-* **Handler decorators**, like auth, ratelimit, and pydantic, wrap async handlers
-  to inspect requests or process responses. Use `functools.wraps`, forward
-  `*args, **kwargs`, and place them below `@app.route(...)`.
-* **ASGI application wrappers**, like lifespan, handle application-level features
-  such as startup and shutdown, then forward HTTP requests to Wred.
-
-Community extensions are encouraged and welcome. Submit yours for consideration;
-we'll list good ones here.
+Wred keeps its core small and lets you choose optional features through independent
+extensions. Handler decorators add route-level behavior; ASGI wrappers add
+application-wide features without changing the core. Community extensions are
+encouraged and welcome. Read the
+[extension contract](https://github.com/wred-asgi/.github/blob/main/EXTENSIONS.md)
+to build your own, and browse the [GitHub organization](https://github.com/wred-asgi)
+for current extensions.
 
 ## Performance
 
